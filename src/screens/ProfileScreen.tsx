@@ -8,9 +8,10 @@ import { getTierColor, getCategoryColor } from '../data';
 import AnimatedCounter from '../components/AnimatedCounter';
 import { Alert, TouchableOpacity } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
+import { loadSampleData } from '../services/sampleDataService';
 
 export default function ProfileScreen() {
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
   const [userData, setUserData] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -61,6 +62,32 @@ export default function ProfileScreen() {
             await clearAllData();
             await loadUserProfile();
             Alert.alert('Success', 'All data has been reset!');
+          },
+        },
+      ]
+    );
+  };
+
+  const handleLoadSampleData = () => {
+    Alert.alert(
+      'Load Sample Data?',
+      'This will create sample groups, users, and predictions for testing. Continue?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Load',
+          onPress: async () => {
+            if (!user) {
+              Alert.alert('Error', 'You must be logged in to load sample data');
+              return;
+            }
+
+            try {
+              await loadSampleData(user.id);
+              Alert.alert('Success!', 'Sample data loaded! Check the Groups tab to see sample groups with members and leaderboards.');
+            } catch (error: any) {
+              Alert.alert('Error', error.message || 'Failed to load sample data');
+            }
           },
         },
       ]
@@ -282,11 +309,18 @@ export default function ProfileScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Temporary Reset Button for Development */}
+      {/* Development Tools */}
       <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Development Tools</Text>
+
+        <TouchableOpacity style={styles.devButton} onPress={handleLoadSampleData}>
+          <Ionicons name="cloud-download-outline" size={20} color="#00d9ff" />
+          <Text style={styles.devButtonText}>Load Sample Data</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity style={styles.resetButton} onPress={handleResetData}>
           <Ionicons name="refresh" size={20} color="#ff6b6b" />
-          <Text style={styles.resetButtonText}>Reset All Data (Dev Only)</Text>
+          <Text style={styles.resetButtonText}>Reset All Data</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -512,6 +546,23 @@ const styles = StyleSheet.create({
     borderColor: '#00d9ff',
   },
   signOutButtonText: {
+    fontSize: 14,
+    color: '#00d9ff',
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  devButton: {
+    backgroundColor: '#1a1f3a',
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#00d9ff',
+    marginBottom: 12,
+  },
+  devButtonText: {
     fontSize: 14,
     color: '#00d9ff',
     fontWeight: '600',
