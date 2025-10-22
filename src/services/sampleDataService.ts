@@ -88,8 +88,8 @@ export const loadSampleData = async (currentUserId: string): Promise<void> => {
 
     for (const userData of sampleUsers) {
       try {
-        // Create a fake user ID (UUID format)
-        const fakeUserId = `sample-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        // Generate a proper UUID v4
+        const fakeUserId = `${Date.now().toString(16)}-${Math.random().toString(16).substr(2, 4)}-4${Math.random().toString(16).substr(2, 3)}-${(8 + Math.floor(Math.random() * 4)).toString(16)}${Math.random().toString(16).substr(2, 3)}-${Math.random().toString(16).substr(2, 12)}`;
 
         // Insert into profiles table
         const { error } = await supabase
