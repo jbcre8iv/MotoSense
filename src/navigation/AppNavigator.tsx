@@ -12,11 +12,28 @@ import HomeScreen from '../screens/HomeScreen';
 import PredictionsScreen from '../screens/PredictionsScreen';
 import RacesScreen from '../screens/RacesScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import GroupsScreen from '../screens/GroupsScreen';
+import GroupDetailsScreen from '../screens/GroupDetailsScreen';
 import LoginScreen from '../screens/LoginScreen';
 import SignupScreen from '../screens/SignupScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
+
+// Groups stack (nested navigation for Groups section)
+function GroupsStack() {
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: false,
+        cardStyle: { backgroundColor: '#0a0e27' },
+      }}
+    >
+      <Stack.Screen name="GroupsList" component={GroupsScreen} />
+      <Stack.Screen name="GroupDetails" component={GroupDetailsScreen} />
+    </Stack.Navigator>
+  );
+}
 
 // Main app tabs (for authenticated users)
 function MainTabs() {
@@ -60,6 +77,15 @@ function MainTabs() {
         options={{
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="analytics" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Groups"
+        component={GroupsStack}
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="people" size={size} color={color} />
           ),
         }}
       />
