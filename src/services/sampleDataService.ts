@@ -1,6 +1,22 @@
 import { supabase } from './supabase';
 import { createGroup, joinPublicGroup } from './groupsService';
 import { savePredictionToSupabase } from './predictionsService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// AsyncStorage keys for tracking sample data
+const SAMPLE_USERS_KEY = '@sample_users';
+const SAMPLE_GROUPS_KEY = '@sample_groups';
+
+/**
+ * Generate a proper UUID v4
+ */
+function generateUUID(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
 
 /**
  * Generate sample users for testing
@@ -89,7 +105,7 @@ export const loadSampleData = async (currentUserId: string): Promise<void> => {
     for (const userData of sampleUsers) {
       try {
         // Generate a proper UUID v4
-        const fakeUserId = `${Date.now().toString(16)}-${Math.random().toString(16).substr(2, 4)}-4${Math.random().toString(16).substr(2, 3)}-${(8 + Math.floor(Math.random() * 4)).toString(16)}${Math.random().toString(16).substr(2, 3)}-${Math.random().toString(16).substr(2, 12)}`;
+        const fakeUserId = generateUUID();
 
         // Insert into profiles table
         const { error } = await supabase
@@ -175,6 +191,11 @@ export const loadSampleData = async (currentUserId: string): Promise<void> => {
       }
     }
 
+    // Step 6: Store sample data IDs for cleanup
+    console.log('💾 [SAMPLE DATA] Storing sample data IDs for cleanup...');
+    await AsyncStorage.setItem(SAMPLE_USERS_KEY, JSON.stringify(createdUserIds));
+    await AsyncStorage.setItem(SAMPLE_GROUPS_KEY, JSON.stringify(createdGroups));
+
     console.log('✅ [SAMPLE DATA] Sample data loaded successfully!');
     console.log(`📊 [SAMPLE DATA] Summary:`);
     console.log(`   - ${createdGroups.length} groups created`);
@@ -193,16 +214,48 @@ export const clearSampleData = async (): Promise<void> => {
   try {
     console.log('🧹 [SAMPLE DATA] Clearing sample data...');
 
-    // Delete sample profiles (this will cascade to group_members and predictions)
-    const { error } = await supabase
-      .from('profiles')
-      .delete()
-      .like('id', 'sample-%');
+    // Get stored sample data IDs
+    const sampleUsersJson = await AsyncStorage.getItem(SAMPLE_USERS_KEY);
+    const sampleGroupsJson = await AsyncStorage.getItem(SAMPLE_GROUPS_KEY);
 
-    if (error) {
-      console.error('❌ [SAMPLE DATA] Error clearing sample data:', error.message);
-      throw error;
+    const sampleUserIds: string[] = sampleUsersJson ? JSON.parse(sampleUsersJson) : [];
+    const sampleGroupIds: string[] = sampleGroupsJson ? JSON.parse(sampleGroupsJson) : [];
+
+    console.log(`📋 [SAMPLE DATA] Found ${sampleUserIds.length} sample users and ${sampleGroupIds.length} sample groups to delete`);
+
+    // Delete sample groups
+    if (sampleGroupIds.length > 0) {
+      console.log('🗑️ [SAMPLE DATA] Deleting sample groups...');
+      const { error: groupsError } = await supabase
+        .from('groups')
+        .delete()
+        .in('id', sampleGroupIds);
+
+      if (groupsError) {
+        console.error('❌ [SAMPLE DATA] Error deleting groups:', groupsError.message);
+      } else {
+        console.log(`✅ [SAMPLE DATA] Deleted ${sampleGroupIds.length} sample groups`);
+      }
     }
+
+    // Delete sample profiles (this will cascade to group_members and predictions)
+    if (sampleUserIds.length > 0) {
+      console.log('🗑️ [SAMPLE DATA] Deleting sample user profiles...');
+      const { error: profilesError } = await supabase
+        .from('profiles')
+        .delete()
+        .in('id', sampleUserIds);
+
+      if (profilesError) {
+        console.error('❌ [SAMPLE DATA] Error deleting profiles:', profilesError.message);
+      } else {
+        console.log(`✅ [SAMPLE DATA] Deleted ${sampleUserIds.length} sample profiles`);
+      }
+    }
+
+    // Clear AsyncStorage tracking
+    await AsyncStorage.removeItem(SAMPLE_USERS_KEY);
+    await AsyncStorage.removeItem(SAMPLE_GROUPS_KEY);
 
     console.log('✅ [SAMPLE DATA] Sample data cleared successfully!');
   } catch (error: any) {

@@ -8,7 +8,7 @@ import { getTierColor, getCategoryColor } from '../data';
 import AnimatedCounter from '../components/AnimatedCounter';
 import { Alert, TouchableOpacity } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
-import { loadSampleData } from '../services/sampleDataService';
+import { loadSampleData, clearSampleData } from '../services/sampleDataService';
 
 export default function ProfileScreen() {
   const { signOut, user } = useAuth();
@@ -52,16 +52,26 @@ export default function ProfileScreen() {
   const handleResetData = () => {
     Alert.alert(
       'Reset All Data?',
-      'This will delete all predictions, stats, and achievements. Are you sure?',
+      'This will delete all predictions, stats, achievements, and sample data. Are you sure?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Reset',
           style: 'destructive',
           onPress: async () => {
-            await clearAllData();
-            await loadUserProfile();
-            Alert.alert('Success', 'All data has been reset!');
+            try {
+              // Clear AsyncStorage data
+              await clearAllData();
+
+              // Clear sample data from Supabase
+              await clearSampleData();
+
+              await loadUserProfile();
+              Alert.alert('Success', 'All data has been reset!');
+            } catch (error: any) {
+              console.error('Error resetting data:', error);
+              Alert.alert('Error', 'Failed to reset some data. Check logs for details.');
+            }
           },
         },
       ]
