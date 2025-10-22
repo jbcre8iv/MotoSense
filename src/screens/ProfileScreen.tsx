@@ -9,6 +9,7 @@ import AnimatedCounter from '../components/AnimatedCounter';
 import { Alert, TouchableOpacity } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { loadSampleData, clearSampleData } from '../services/sampleDataService';
+import PerformanceDashboard from '../components/PerformanceDashboard';
 
 export default function ProfileScreen() {
   const { signOut, user } = useAuth();
@@ -209,6 +210,9 @@ export default function ProfileScreen() {
           </View>
         </View>
       </View>
+
+      {/* Performance Dashboard */}
+      <PerformanceDashboard userProfile={userData} />
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>
