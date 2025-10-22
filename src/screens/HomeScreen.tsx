@@ -1,12 +1,41 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, SafeAreaView, RefreshControl } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { mockRaces, mockTracks } from '../data';
 import WeatherCard from '../components/WeatherCard';
 
 export default function HomeScreen() {
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = async () => {
+    // Haptic feedback on pull
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    setRefreshing(true);
+
+    // Simulate refresh delay (weather data will auto-refresh via WeatherCard re-render)
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    setRefreshing(false);
+
+    // Success haptic after refresh
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView style={styles.container}>
+      <ScrollView
+        style={styles.container}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#00d9ff"
+            colors={['#00d9ff']}
+            progressBackgroundColor="#1a1f3a"
+          />
+        }
+      >
       <View style={styles.header}>
         <Text style={styles.title}>MotoSense</Text>
         <Text style={styles.tagline}>Sense The Race</Text>

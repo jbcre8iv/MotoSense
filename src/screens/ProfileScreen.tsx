@@ -3,8 +3,10 @@ import { View, Text, StyleSheet, ScrollView, ActivityIndicator, SafeAreaView } f
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { UserProfile, Achievement } from '../types';
-import { getUserProfile, initializeUserProfile } from '../services/storageService';
+import { getUserProfile, initializeUserProfile, clearAllData } from '../services/storageService';
 import { getTierColor, getCategoryColor } from '../data';
+import AnimatedCounter from '../components/AnimatedCounter';
+import { Alert, TouchableOpacity } from 'react-native';
 
 export default function ProfileScreen() {
   const [userData, setUserData] = useState<UserProfile | null>(null);
@@ -13,13 +15,37 @@ export default function ProfileScreen() {
   const loadUserProfile = async () => {
     try {
       setLoading(true);
-      const profile = await initializeUserProfile();
+      // Get existing profile without re-initializing
+      let profile = await getUserProfile();
+      // Only initialize if profile doesn't exist
+      if (!profile) {
+        profile = await initializeUserProfile();
+      }
       setUserData(profile);
     } catch (error) {
       console.error('Error loading user profile:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleResetData = () => {
+    Alert.alert(
+      'Reset All Data?',
+      'This will delete all predictions, stats, and achievements. Are you sure?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset',
+          style: 'destructive',
+          onPress: async () => {
+            await clearAllData();
+            await loadUserProfile();
+            Alert.alert('Success', 'All data has been reset!');
+          },
+        },
+      ]
+    );
   };
 
   useEffect(() => {
@@ -65,33 +91,64 @@ export default function ProfileScreen() {
 
         <View style={styles.statsGrid}>
           <View style={styles.statCard}>
-            <Text style={styles.statValue}>{userData.totalPredictions}</Text>
+            <AnimatedCounter
+              value={userData.totalPredictions}
+              style={styles.statValue}
+              duration={1200}
+            />
             <Text style={styles.statLabel}>Total Predictions</Text>
           </View>
 
           <View style={styles.statCard}>
-            <Text style={styles.statValue}>{userData.accuracyPercentage}%</Text>
+            <AnimatedCounter
+              value={userData.accuracyPercentage}
+              style={styles.statValue}
+              suffix="%"
+              duration={1400}
+              delay={100}
+            />
             <Text style={styles.statLabel}>Accuracy</Text>
           </View>
 
           <View style={styles.statCard}>
-            <Text style={styles.statValue}>Level {userData.racingIQLevel}</Text>
+            <AnimatedCounter
+              value={userData.racingIQLevel}
+              style={styles.statValue}
+              prefix="Level "
+              duration={1000}
+              delay={200}
+            />
             <Text style={styles.statLabel}>Racing IQ</Text>
           </View>
 
           <View style={styles.statCard}>
-            <Text style={styles.statValue}>{userData.totalPoints}</Text>
+            <AnimatedCounter
+              value={userData.totalPoints}
+              style={styles.statValue}
+              duration={1600}
+              delay={300}
+            />
             <Text style={styles.statLabel}>Total Points</Text>
           </View>
 
           <View style={[styles.statCard, styles.streakCard]}>
             <Ionicons name="flame" size={24} color="#ff6b6b" />
-            <Text style={[styles.statValue, { color: '#ff6b6b' }]}>{userData.currentStreak}</Text>
+            <AnimatedCounter
+              value={userData.currentStreak}
+              style={[styles.statValue, { color: '#ff6b6b' }]}
+              duration={1000}
+              delay={400}
+            />
             <Text style={styles.statLabel}>Current Streak</Text>
           </View>
 
           <View style={styles.statCard}>
-            <Text style={styles.statValue}>{userData.longestStreak}</Text>
+            <AnimatedCounter
+              value={userData.longestStreak}
+              style={styles.statValue}
+              duration={1200}
+              delay={500}
+            />
             <Text style={styles.statLabel}>Longest Streak</Text>
           </View>
         </View>
@@ -177,6 +234,33 @@ export default function ProfileScreen() {
             Remember: MotoSense is for learning and fun, not gambling!
           </Text>
         </View>
+      </View>
+
+      {/* Debug Info */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Debug Info</Text>
+        <View style={styles.debugCard}>
+          <Text style={styles.debugLabel}>Raw Data:</Text>
+          <Text style={styles.debugText}>Total Predictions: {userData.totalPredictions}</Text>
+          <Text style={styles.debugText}>Total Points: {userData.totalPoints}</Text>
+          <Text style={styles.debugText}>Current Streak: {userData.currentStreak}</Text>
+          <Text style={styles.debugText}>Racing IQ Level: {userData.racingIQLevel}</Text>
+          <Text style={styles.debugText}>Accuracy: {userData.accuracyPercentage}%</Text>
+          <Text style={styles.debugText}>
+            Achievements Unlocked: {userData.achievements.filter(a => a.isUnlocked).length}/{userData.achievements.length}
+          </Text>
+          <Text style={styles.debugText}>
+            Max Achievement Progress: {Math.max(...userData.achievements.filter(a => a.type === 'prediction_count').map(a => a.currentProgress), 0)}
+          </Text>
+        </View>
+      </View>
+
+      {/* Temporary Reset Button for Development */}
+      <View style={styles.section}>
+        <TouchableOpacity style={styles.resetButton} onPress={handleResetData}>
+          <Ionicons name="refresh" size={20} color="#ff6b6b" />
+          <Text style={styles.resetButtonText}>Reset All Data (Dev Only)</Text>
+        </TouchableOpacity>
       </View>
     </ScrollView>
     </SafeAreaView>
@@ -389,5 +473,40 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#8892b0',
     lineHeight: 20,
+  },
+  resetButton: {
+    backgroundColor: '#1a1f3a',
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#ff6b6b',
+  },
+  resetButtonText: {
+    fontSize: 14,
+    color: '#ff6b6b',
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  debugCard: {
+    backgroundColor: '#1a1f3a',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#00d9ff',
+  },
+  debugLabel: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#00d9ff',
+    marginBottom: 8,
+  },
+  debugText: {
+    fontSize: 12,
+    color: '#8892b0',
+    marginBottom: 4,
+    fontFamily: 'monospace',
   },
 });

@@ -11,7 +11,15 @@ const KEYS = {
 export const getUserProfile = async (): Promise<UserProfile | null> => {
   try {
     const data = await AsyncStorage.getItem(KEYS.USER_PROFILE);
-    return data ? JSON.parse(data) : null;
+    const profile = data ? JSON.parse(data) : null;
+    console.log('📖 [GET PROFILE]', profile ? {
+      totalPredictions: profile.totalPredictions,
+      totalPoints: profile.totalPoints,
+      currentStreak: profile.currentStreak,
+      racingIQLevel: profile.racingIQLevel,
+      achievementsUnlocked: profile.achievements?.filter((a: Achievement) => a.isUnlocked).length || 0
+    } : 'No profile found');
+    return profile;
   } catch (error) {
     console.error('Error getting user profile:', error);
     return null;
@@ -20,6 +28,13 @@ export const getUserProfile = async (): Promise<UserProfile | null> => {
 
 export const saveUserProfile = async (profile: UserProfile): Promise<boolean> => {
   try {
+    console.log('💾 [SAVE PROFILE]', {
+      totalPredictions: profile.totalPredictions,
+      totalPoints: profile.totalPoints,
+      currentStreak: profile.currentStreak,
+      racingIQLevel: profile.racingIQLevel,
+      achievementsUnlocked: profile.achievements?.filter(a => a.isUnlocked).length || 0
+    });
     await AsyncStorage.setItem(KEYS.USER_PROFILE, JSON.stringify(profile));
     return true;
   } catch (error) {
@@ -98,8 +113,18 @@ const isConsecutiveRace = (lastDate: string | undefined, currentDate: string): b
 // Update user stats after making a prediction
 export const updateUserStats = async (newPrediction: Prediction): Promise<boolean> => {
   try {
+    console.log('🔄 [UPDATE STATS] Starting update for prediction:', newPrediction.id);
     const profile = await getUserProfile();
-    if (!profile) return false;
+    if (!profile) {
+      console.error('❌ [UPDATE STATS] No profile found!');
+      return false;
+    }
+
+    console.log('📊 [UPDATE STATS] Before update:', {
+      totalPredictions: profile.totalPredictions,
+      currentStreak: profile.currentStreak,
+      totalPoints: profile.totalPoints
+    });
 
     // Update total predictions
     profile.totalPredictions += 1;
@@ -119,10 +144,17 @@ export const updateUserStats = async (newPrediction: Prediction): Promise<boolea
     // Calculate Racing IQ level based on total predictions
     profile.racingIQLevel = Math.floor(profile.totalPredictions / 5) + 1;
 
+    console.log('📊 [UPDATE STATS] After update:', {
+      totalPredictions: profile.totalPredictions,
+      currentStreak: profile.currentStreak,
+      racingIQLevel: profile.racingIQLevel
+    });
+
     // Update achievement progress
     await updateAchievementProgress(profile, newPrediction);
 
     await saveUserProfile(profile);
+    console.log('✅ [UPDATE STATS] Stats updated successfully');
     return true;
   } catch (error) {
     console.error('Error updating user stats:', error);
@@ -132,6 +164,7 @@ export const updateUserStats = async (newPrediction: Prediction): Promise<boolea
 
 // Update achievement progress based on user actions
 const updateAchievementProgress = async (profile: UserProfile, newPrediction: Prediction): Promise<void> => {
+  console.log('🏆 [ACHIEVEMENTS] Updating achievement progress...');
   const newlyUnlocked: Achievement[] = [];
 
   profile.achievements = profile.achievements.map(achievement => {
@@ -184,15 +217,20 @@ const updateAchievementProgress = async (profile: UserProfile, newPrediction: Pr
   if (newlyUnlocked.length > 0) {
     const pointsEarned = newlyUnlocked.reduce((sum, ach) => sum + (ach.rewardPoints || 0), 0);
     profile.totalPoints += pointsEarned;
+    console.log('🎉 [ACHIEVEMENTS] Unlocked:', newlyUnlocked.map(a => a.title), 'Points earned:', pointsEarned);
+  } else {
+    console.log('🏆 [ACHIEVEMENTS] No new achievements unlocked');
   }
 };
 
 // Initialize user profile if it doesn't exist
 export const initializeUserProfile = async (): Promise<UserProfile> => {
   try {
+    console.log('🔧 [INIT PROFILE] Initializing user profile...');
     const existingProfile = await getUserProfile();
 
     if (existingProfile) {
+      console.log('👤 [INIT PROFILE] Existing profile found, checking for updates...');
       // Migrate old profiles to new structure
       let needsUpdate = false;
 
@@ -207,6 +245,38 @@ export const initializeUserProfile = async (): Promise<UserProfile> => {
       }
       if (existingProfile.totalPoints === undefined) {
         existingProfile.totalPoints = 0;
+        needsUpdate = true;
+      }
+
+      // Sync stats from achievements if out of sync
+      const unlockedCount = existingProfile.achievements?.filter(a => a.isUnlocked).length || 0;
+      const predictionAchievements = existingProfile.achievements?.filter(a => a.type === 'prediction_count') || [];
+      const maxPredictionProgress = Math.max(...predictionAchievements.map(a => a.currentProgress), 0);
+
+      console.log('🔄 [SYNC CHECK]', {
+        totalPredictions: existingProfile.totalPredictions,
+        unlockedCount,
+        maxPredictionProgress
+      });
+
+      // If achievements show progress but stats are 0, restore from achievements
+      if (unlockedCount > 0 && existingProfile.totalPredictions === 0 && maxPredictionProgress > 0) {
+        console.log('⚠️ [SYNC] Data out of sync! Restoring from achievements...');
+        existingProfile.totalPredictions = maxPredictionProgress;
+        existingProfile.racingIQLevel = Math.floor(maxPredictionProgress / 5) + 1;
+
+        // Recalculate total points from unlocked achievements
+        const pointsFromAchievements = existingProfile.achievements
+          ?.filter(a => a.isUnlocked)
+          .reduce((sum, a) => sum + (a.rewardPoints || 0), 0) || 0;
+        existingProfile.totalPoints = pointsFromAchievements;
+
+        console.log('✅ [SYNC] Restored stats:', {
+          totalPredictions: existingProfile.totalPredictions,
+          racingIQLevel: existingProfile.racingIQLevel,
+          totalPoints: existingProfile.totalPoints
+        });
+
         needsUpdate = true;
       }
 

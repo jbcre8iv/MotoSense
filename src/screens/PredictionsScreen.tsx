@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, SafeAreaView } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { mockRaces, mockTracks, mockRiders } from '../data';
 import { Prediction } from '../types';
 import { savePrediction, updateUserStats } from '../services/storageService';
@@ -9,6 +10,9 @@ export default function PredictionsScreen() {
   const [predictions, setPredictions] = useState<{ [position: number]: string }>({});
 
   const handleRiderSelect = (position: number, riderId: string) => {
+    // Light haptic feedback for selection
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
     setPredictions(prev => ({
       ...prev,
       [position]: riderId
@@ -18,6 +22,8 @@ export default function PredictionsScreen() {
   const submitPrediction = async () => {
     const predictionCount = Object.keys(predictions).length;
     if (predictionCount < 5) {
+      // Error haptic
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert('Incomplete', 'Please select riders for all 5 positions');
       return;
     }
@@ -37,6 +43,9 @@ export default function PredictionsScreen() {
       await savePrediction(prediction);
       await updateUserStats(prediction);
 
+      // Success haptic!
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
       Alert.alert('Success!', 'Your predictions have been saved! Check your profile to see updated stats.', [
         {
           text: 'OK',
@@ -44,6 +53,8 @@ export default function PredictionsScreen() {
         }
       ]);
     } catch (error) {
+      // Error haptic
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert('Error', 'Failed to save prediction. Please try again.');
       console.error('Error saving prediction:', error);
     }

@@ -2,6 +2,7 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 
 import HomeScreen from '../screens/HomeScreen';
 import PredictionsScreen from '../screens/PredictionsScreen';
@@ -29,6 +30,12 @@ export default function AppNavigator() {
           tabBarLabelStyle: {
             fontSize: 12,
             fontWeight: '600',
+          },
+        }}
+        screenListeners={{
+          tabPress: () => {
+            // Light haptic feedback on tab press
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           },
         }}
       >
