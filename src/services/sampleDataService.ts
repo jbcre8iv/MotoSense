@@ -7,11 +7,11 @@ import { savePredictionToSupabase } from './predictionsService';
  * Note: This creates fake user entries in the profiles table for demo purposes
  */
 const sampleUsers = [
-  { username: 'rider_mike', display_name: 'Mike Thompson', email: 'mike@example.com' },
-  { username: 'moto_sarah', display_name: 'Sarah Johnson', email: 'sarah@example.com' },
-  { username: 'track_master', display_name: 'Alex Rivera', email: 'alex@example.com' },
-  { username: 'speed_demon', display_name: 'Chris Lee', email: 'chris@example.com' },
-  { username: 'dirt_king', display_name: 'Jordan Smith', email: 'jordan@example.com' },
+  { username: 'rider_mike', display_name: 'Mike Thompson' },
+  { username: 'moto_sarah', display_name: 'Sarah Johnson' },
+  { username: 'track_master', display_name: 'Alex Rivera' },
+  { username: 'speed_demon', display_name: 'Chris Lee' },
+  { username: 'dirt_king', display_name: 'Jordan Smith' },
 ];
 
 /**
@@ -98,7 +98,6 @@ export const loadSampleData = async (currentUserId: string): Promise<void> => {
             id: fakeUserId,
             username: userData.username,
             display_name: userData.display_name,
-            email: userData.email,
           });
 
         if (error) {
@@ -107,6 +106,9 @@ export const loadSampleData = async (currentUserId: string): Promise<void> => {
           createdUserIds.push(fakeUserId);
           console.log(`✅ [SAMPLE DATA] Created profile: ${userData.username}`);
         }
+
+        // Small delay to ensure unique timestamps
+        await new Promise(resolve => setTimeout(resolve, 50));
       } catch (error: any) {
         console.error(`❌ [SAMPLE DATA] Error creating profile:`, error.message);
       }
