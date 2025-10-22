@@ -10,8 +10,8 @@ import {
   ActivityIndicator,
   Alert,
   ScrollView,
-  SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { signUp } from '../services/authService';
 

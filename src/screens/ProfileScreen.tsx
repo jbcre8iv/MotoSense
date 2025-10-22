@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { UserProfile, Achievement } from '../types';
@@ -10,11 +11,13 @@ import { Alert, TouchableOpacity } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
 import { loadSampleData, clearSampleData } from '../services/sampleDataService';
 import PerformanceDashboard from '../components/PerformanceDashboard';
+import DataDisclaimerModal from '../components/DataDisclaimerModal';
 
 export default function ProfileScreen() {
   const { signOut, user } = useAuth();
   const [userData, setUserData] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showDisclaimer, setShowDisclaimer] = useState(false);
 
   const loadUserProfile = async () => {
     try {
@@ -315,13 +318,30 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      {/* Sign Out Button */}
+      {/* App Info & Actions */}
       <View style={styles.section}>
+        <Text style={styles.sectionTitle}>App Information</Text>
+
+        <TouchableOpacity
+          style={styles.infoButton}
+          onPress={() => setShowDisclaimer(true)}
+        >
+          <Ionicons name="information-circle-outline" size={20} color="#00d9ff" />
+          <Text style={styles.infoButtonText}>Data & Disclaimer</Text>
+          <Ionicons name="chevron-forward" size={20} color="#8892b0" style={{ marginLeft: 'auto' }} />
+        </TouchableOpacity>
+
         <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
           <Ionicons name="log-out-outline" size={20} color="#00d9ff" />
           <Text style={styles.signOutButtonText}>Sign Out</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Data Disclaimer Modal */}
+      <DataDisclaimerModal
+        visible={showDisclaimer}
+        onClose={() => setShowDisclaimer(false)}
+      />
 
       {/* Development Tools */}
       <View style={styles.section}>
@@ -548,6 +568,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#8892b0',
     lineHeight: 20,
+  },
+  infoButton: {
+    backgroundColor: '#1a1f3a',
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#2a2f4a',
+    marginBottom: 12,
+  },
+  infoButtonText: {
+    fontSize: 14,
+    color: '#ffffff',
+    fontWeight: '600',
+    marginLeft: 8,
   },
   signOutButton: {
     backgroundColor: '#1a1f3a',

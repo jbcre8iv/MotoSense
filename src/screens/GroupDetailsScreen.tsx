@@ -6,10 +6,10 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  SafeAreaView,
   ActivityIndicator,
   Share,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';

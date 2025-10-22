@@ -8,9 +8,10 @@ interface WeatherCardProps {
   latitude: number;
   longitude: number;
   trackName: string;
+  attached?: boolean;
 }
 
-export default function WeatherCard({ trackId, latitude, longitude, trackName }: WeatherCardProps) {
+export default function WeatherCard({ trackId, latitude, longitude, trackName, attached = false }: WeatherCardProps) {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -37,9 +38,11 @@ export default function WeatherCard({ trackId, latitude, longitude, trackName }:
     }
   };
 
+  const containerStyle = attached ? [styles.container, styles.attachedContainer] : styles.container;
+
   if (loading) {
     return (
-      <View style={styles.container}>
+      <View style={containerStyle}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="small" color="#00d9ff" />
           <Text style={styles.loadingText}>Loading weather...</Text>
@@ -50,7 +53,7 @@ export default function WeatherCard({ trackId, latitude, longitude, trackName }:
 
   if (error || !weather) {
     return (
-      <View style={styles.container}>
+      <View style={containerStyle}>
         <Text style={styles.errorText}>{error || 'No weather data available'}</Text>
       </View>
     );
@@ -59,7 +62,7 @@ export default function WeatherCard({ trackId, latitude, longitude, trackName }:
   const impact = getWeatherImpact(weather);
 
   return (
-    <View style={styles.container}>
+    <View style={containerStyle}>
       <View style={styles.header}>
         <Text style={styles.title}>Weather Forecast</Text>
         <Text style={styles.location}>{trackName}</Text>
@@ -128,6 +131,17 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     marginVertical: 8,
+  },
+  attachedContainer: {
+    marginTop: 0,
+    marginBottom: 0,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#2a2f4a',
+    paddingTop: 16,
   },
   header: {
     marginBottom: 12,

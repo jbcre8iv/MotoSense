@@ -82,7 +82,7 @@ export interface UserProfile {
 }
 
 export type AchievementTier = 'bronze' | 'silver' | 'gold' | 'platinum';
-export type AchievementCategory = 'predictions' | 'accuracy' | 'streaks' | 'special';
+export type AchievementCategory = 'predictions' | 'accuracy' | 'streaks' | 'special' | 'social' | 'loyalty';
 
 export interface Achievement {
   id: string;

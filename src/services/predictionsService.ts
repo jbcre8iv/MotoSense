@@ -48,6 +48,8 @@ export const getPredictionForRace = async (
   raceId: string
 ): Promise<SupabasePrediction | null> => {
   try {
+    console.log('🔍 [GET PREDICTION] Checking for race:', { userId, raceId });
+
     const { data, error } = await supabase
       .from('predictions')
       .select('*')
@@ -56,6 +58,12 @@ export const getPredictionForRace = async (
       .maybeSingle();
 
     if (error) throw error;
+
+    if (data) {
+      console.log('✅ [GET PREDICTION] Found existing prediction:', data.id);
+    } else {
+      console.log('⭕ [GET PREDICTION] No prediction found');
+    }
 
     return data;
   } catch (error: any) {
@@ -115,14 +123,27 @@ export const deletePrediction = async (
  */
 export const deleteAllUserPredictions = async (userId: string): Promise<boolean> => {
   try {
-    const { error } = await supabase
+    console.log('🗑️ [DELETE ALL PREDICTIONS] Starting deletion for user:', userId);
+
+    // First, check how many predictions exist before deletion
+    const { data: beforeData, error: beforeError } = await supabase
       .from('predictions')
-      .delete()
+      .select('id')
+      .eq('user_id', userId);
+
+    if (beforeError) throw beforeError;
+
+    console.log('🗑️ [DELETE ALL PREDICTIONS] Found', beforeData?.length || 0, 'predictions to delete');
+
+    // Now delete them
+    const { error, count } = await supabase
+      .from('predictions')
+      .delete({ count: 'exact' })
       .eq('user_id', userId);
 
     if (error) throw error;
 
-    console.log('✅ [DELETE ALL PREDICTIONS] Deleted successfully');
+    console.log('✅ [DELETE ALL PREDICTIONS] Deleted', count, 'predictions successfully');
     return true;
   } catch (error: any) {
     console.error('❌ [DELETE ALL PREDICTIONS] Error:', error.message);

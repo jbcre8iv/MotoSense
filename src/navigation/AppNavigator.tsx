@@ -1,22 +1,23 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { ActivityIndicator, View, StyleSheet } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { useAuth } from '../contexts/AuthContext';
 
 import HomeScreen from '../screens/HomeScreen';
-import PredictionsScreen from '../screens/PredictionsScreen';
-import RacesScreen from '../screens/RacesScreen';
+import ResultsScreen from '../screens/ResultsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import GroupsScreen from '../screens/GroupsScreen';
 import GroupDetailsScreen from '../screens/GroupDetailsScreen';
 import GroupLeaderboardScreen from '../screens/GroupLeaderboardScreen';
 import LoginScreen from '../screens/LoginScreen';
 import SignupScreen from '../screens/SignupScreen';
+import OnboardingScreen from '../screens/OnboardingScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -65,20 +66,20 @@ function MainTabs() {
       }}
     >
       <Tab.Screen
-        name="Home"
+        name="Upcoming"
         component={HomeScreen}
         options={{
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home" size={size} color={color} />
+            <Ionicons name="flag-outline" size={size} color={color} />
           ),
         }}
       />
       <Tab.Screen
-        name="Predictions"
-        component={PredictionsScreen}
+        name="Results"
+        component={ResultsScreen}
         options={{
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="analytics" size={size} color={color} />
+            <Ionicons name="trophy" size={size} color={color} />
           ),
         }}
       />
@@ -88,15 +89,6 @@ function MainTabs() {
         options={{
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="people" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Races"
-        component={RacesScreen}
-        options={{
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="flag" size={size} color={color} />
           ),
         }}
       />
@@ -131,9 +123,25 @@ function AuthStack() {
 
 export default function AppNavigator() {
   const { user, loading } = useAuth();
+  const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
 
-  // Show loading indicator while checking auth state
-  if (loading) {
+  // Check if onboarding has been completed
+  useEffect(() => {
+    const checkOnboarding = async () => {
+      try {
+        const value = await AsyncStorage.getItem('@onboarding_completed');
+        setOnboardingCompleted(value === 'true');
+      } catch (error) {
+        console.error('Error checking onboarding status:', error);
+        setOnboardingCompleted(false);
+      }
+    };
+
+    checkOnboarding();
+  }, []);
+
+  // Show loading indicator while checking auth state or onboarding status
+  if (loading || onboardingCompleted === null) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#00d9ff" />
@@ -143,7 +151,10 @@ export default function AppNavigator() {
 
   return (
     <NavigationContainer>
-      {user ? (
+      {/* Show onboarding for first-time users */}
+      {!onboardingCompleted ? (
+        <OnboardingScreen />
+      ) : user ? (
         // User is authenticated - show main tabs
         <MainTabs />
       ) : (

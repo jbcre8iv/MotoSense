@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { getUserScores, PredictionScore } from './resultsService';
 
 export interface MemberStats {
   userId: string;
@@ -31,6 +32,46 @@ function calculatePoints(correct: number, bestStreak: number): number {
   const basePoints = correct * 10;
   const streakBonus = Math.floor(bestStreak / 3) * 5; // 5 bonus points for every 3-race streak
   return basePoints + streakBonus;
+}
+
+/**
+ * Calculate current and best streaks from prediction scores
+ * A streak is consecutive races where the user got at least one exact match
+ */
+function calculateStreaks(scores: PredictionScore[]): { currentStreak: number; bestStreak: number } {
+  if (scores.length === 0) return { currentStreak: 0, bestStreak: 0 };
+
+  // Sort scores by calculated_at date (most recent first)
+  const sortedScores = [...scores].sort(
+    (a, b) => new Date(b.calculated_at).getTime() - new Date(a.calculated_at).getTime()
+  );
+
+  let currentStreak = 0;
+  let bestStreak = 0;
+  let tempStreak = 0;
+
+  // Calculate current streak (from most recent)
+  for (let i = 0; i < sortedScores.length; i++) {
+    if (sortedScores[i].exact_matches > 0) {
+      if (i === currentStreak) {
+        currentStreak++;
+      }
+    } else {
+      break; // Current streak ends at first race without exact match
+    }
+  }
+
+  // Calculate best streak (scan all races)
+  for (const score of sortedScores) {
+    if (score.exact_matches > 0) {
+      tempStreak++;
+      bestStreak = Math.max(bestStreak, tempStreak);
+    } else {
+      tempStreak = 0;
+    }
+  }
+
+  return { currentStreak, bestStreak };
 }
 
 /**
@@ -81,21 +122,24 @@ export const getGroupLeaderboard = async (groupId: string): Promise<MemberStats[
           };
         }
 
-        // Calculate stats from predictions
-        // NOTE: We don't have actual race results yet, so we'll use placeholder logic
-        // In a real scenario, we'd compare predictions against actual race results
+        // Calculate stats from predictions and actual results
         const totalPredictions = predictions?.length || 0;
 
-        // TODO: Replace with actual result checking when race results are available
-        // For now, we'll use a placeholder: assume 60% accuracy randomly
-        const correctPredictions = Math.floor(totalPredictions * 0.6);
+        // Get all scores for this user (only races with results)
+        const scores = await getUserScores(userId);
 
-        // TODO: Calculate actual streaks from consecutive correct predictions
-        const currentStreak = 0;
-        const bestStreak = 0;
+        // Calculate total points from all scored races
+        const totalPoints = scores.reduce((sum, score) => sum + score.points_earned, 0);
+
+        // Count races where user got at least one exact match
+        const correctPredictions = scores.filter(score => score.exact_matches > 0).length;
+
+        // Calculate streaks: consecutive races with exact matches
+        // Sort scores by race date (we'll need to enhance this later with race ordering)
+        const { currentStreak, bestStreak } = calculateStreaks(scores);
 
         const accuracy = calculateAccuracy(correctPredictions, totalPredictions);
-        const points = calculatePoints(correctPredictions, bestStreak);
+        const points = totalPoints;
 
         return {
           userId,

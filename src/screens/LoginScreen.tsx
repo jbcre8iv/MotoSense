@@ -9,8 +9,8 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
-  SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { login, resetPassword } from '../services/authService';
 

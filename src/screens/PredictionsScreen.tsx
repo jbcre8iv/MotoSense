@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
 import { mockRaces, mockTracks, mockRiders } from '../data';
@@ -17,11 +18,14 @@ export default function PredictionsScreen() {
   // Check if prediction already exists for this race
   useEffect(() => {
     const checkExistingPrediction = async () => {
+      console.log('📋 [PREDICTIONS SCREEN] useEffect checking for existing prediction...');
       if (!user) {
+        console.log('📋 [PREDICTIONS SCREEN] No user, setting hasExistingPrediction to false');
         setHasExistingPrediction(false);
         return;
       }
       const existing = await getSupabasePrediction(user.id, selectedRace.id);
+      console.log('📋 [PREDICTIONS SCREEN] Setting hasExistingPrediction to:', !!existing);
       setHasExistingPrediction(!!existing);
     };
     checkExistingPrediction();
@@ -31,11 +35,14 @@ export default function PredictionsScreen() {
   useFocusEffect(
     React.useCallback(() => {
       const checkExistingPrediction = async () => {
+        console.log('📋 [PREDICTIONS SCREEN] useFocusEffect checking for existing prediction...');
         if (!user) {
+          console.log('📋 [PREDICTIONS SCREEN] No user, setting hasExistingPrediction to false');
           setHasExistingPrediction(false);
           return;
         }
         const existing = await getSupabasePrediction(user.id, selectedRace.id);
+        console.log('📋 [PREDICTIONS SCREEN] useFocusEffect setting hasExistingPrediction to:', !!existing);
         setHasExistingPrediction(!!existing);
       };
       checkExistingPrediction();
