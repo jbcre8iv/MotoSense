@@ -242,7 +242,7 @@ export default function GroupDetailsScreen({ route, navigation }: any) {
             style={styles.actionCard}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              Alert.alert('Coming Soon', 'Group leaderboard will be available in a future update!');
+              navigation.navigate('GroupLeaderboard', { groupId: group.id });
             }}
           >
             <View style={styles.actionIcon}>

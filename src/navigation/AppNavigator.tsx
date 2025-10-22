@@ -14,6 +14,7 @@ import RacesScreen from '../screens/RacesScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import GroupsScreen from '../screens/GroupsScreen';
 import GroupDetailsScreen from '../screens/GroupDetailsScreen';
+import GroupLeaderboardScreen from '../screens/GroupLeaderboardScreen';
 import LoginScreen from '../screens/LoginScreen';
 import SignupScreen from '../screens/SignupScreen';
 
@@ -31,6 +32,7 @@ function GroupsStack() {
     >
       <Stack.Screen name="GroupsList" component={GroupsScreen} />
       <Stack.Screen name="GroupDetails" component={GroupDetailsScreen} />
+      <Stack.Screen name="GroupLeaderboard" component={GroupLeaderboardScreen} />
     </Stack.Navigator>
   );
 }
