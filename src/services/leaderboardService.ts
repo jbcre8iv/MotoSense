@@ -62,8 +62,7 @@ export const getGroupLeaderboard = async (groupId: string): Promise<MemberStats[
         const { data: predictions, error: predictionsError } = await supabase
           .from('predictions')
           .select('*')
-          .eq('user_id', userId)
-          .order('created_at', { ascending: true });
+          .eq('user_id', userId);
 
         if (predictionsError) {
           console.error('Error fetching predictions:', predictionsError);
