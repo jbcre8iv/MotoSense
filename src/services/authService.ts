@@ -151,15 +151,13 @@ export const updateUserProfile = async (userId: string, updates: any) => {
 };
 
 /**
- * Reset password
+ * Reset password - sends email with reset link
  */
 export const resetPassword = async (email: string) => {
   try {
     console.log('🔐 [AUTH] Sending password reset email to:', email);
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: 'motosense://reset-password',
-    });
+    const { error } = await supabase.auth.resetPasswordForEmail(email);
 
     if (error) throw error;
 

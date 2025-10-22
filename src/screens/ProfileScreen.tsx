@@ -7,8 +7,10 @@ import { getUserProfile, initializeUserProfile, clearAllData } from '../services
 import { getTierColor, getCategoryColor } from '../data';
 import AnimatedCounter from '../components/AnimatedCounter';
 import { Alert, TouchableOpacity } from 'react-native';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function ProfileScreen() {
+  const { signOut } = useAuth();
   const [userData, setUserData] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -27,6 +29,23 @@ export default function ProfileScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSignOut = () => {
+    Alert.alert(
+      'Sign Out',
+      'Are you sure you want to sign out?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign Out',
+          style: 'destructive',
+          onPress: async () => {
+            await signOut();
+          },
+        },
+      ]
+    );
   };
 
   const handleResetData = () => {
@@ -255,6 +274,14 @@ export default function ProfileScreen() {
         </View>
       </View>
 
+      {/* Sign Out Button */}
+      <View style={styles.section}>
+        <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
+          <Ionicons name="log-out-outline" size={20} color="#00d9ff" />
+          <Text style={styles.signOutButtonText}>Sign Out</Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Temporary Reset Button for Development */}
       <View style={styles.section}>
         <TouchableOpacity style={styles.resetButton} onPress={handleResetData}>
@@ -473,6 +500,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#8892b0',
     lineHeight: 20,
+  },
+  signOutButton: {
+    backgroundColor: '#1a1f3a',
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#00d9ff',
+  },
+  signOutButtonText: {
+    fontSize: 14,
+    color: '#00d9ff',
+    fontWeight: '600',
+    marginLeft: 8,
   },
   resetButton: {
     backgroundColor: '#1a1f3a',

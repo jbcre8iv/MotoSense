@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, SafeAreaView } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
 import { mockRaces, mockTracks, mockRiders } from '../data';
 import { Prediction } from '../types';
-import { savePrediction, updateUserStats, getPredictionForRace } from '../services/storageService';
+import { updateUserStats } from '../services/storageService';
+import { savePredictionToSupabase, getPredictionForRace as getSupabasePrediction } from '../services/predictionsService';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function PredictionsScreen() {
+  const { user } = useAuth();
   const [selectedRace, setSelectedRace] = useState(mockRaces[0]);
   const [predictions, setPredictions] = useState<{ [position: number]: string }>({});
   const [hasExistingPrediction, setHasExistingPrediction] = useState(false);
@@ -13,11 +17,30 @@ export default function PredictionsScreen() {
   // Check if prediction already exists for this race
   useEffect(() => {
     const checkExistingPrediction = async () => {
-      const existing = await getPredictionForRace(selectedRace.id);
+      if (!user) {
+        setHasExistingPrediction(false);
+        return;
+      }
+      const existing = await getSupabasePrediction(user.id, selectedRace.id);
       setHasExistingPrediction(!!existing);
     };
     checkExistingPrediction();
-  }, [selectedRace.id]);
+  }, [selectedRace.id, user]);
+
+  // Re-check when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      const checkExistingPrediction = async () => {
+        if (!user) {
+          setHasExistingPrediction(false);
+          return;
+        }
+        const existing = await getSupabasePrediction(user.id, selectedRace.id);
+        setHasExistingPrediction(!!existing);
+      };
+      checkExistingPrediction();
+    }, [selectedRace.id, user])
+  );
 
   const handleRiderSelect = (position: number, riderId: string) => {
     // Light haptic feedback for selection
@@ -45,10 +68,20 @@ export default function PredictionsScreen() {
       return;
     }
 
+    if (!user) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Not Logged In', 'Please log in to save predictions.');
+      return;
+    }
+
     try {
+      // Save to Supabase
+      await savePredictionToSupabase(user.id, selectedRace.id, predictions);
+
+      // Update local stats (still using AsyncStorage for now)
       const prediction: Prediction = {
         id: `prediction_${Date.now()}`,
-        userId: 'current_user',
+        userId: user.id,
         raceId: selectedRace.id,
         predictions: Object.entries(predictions).map(([position, riderId]) => ({
           riderId,
@@ -56,8 +89,6 @@ export default function PredictionsScreen() {
         })),
         timestamp: new Date().toISOString(),
       };
-
-      await savePrediction(prediction);
       await updateUserStats(prediction);
 
       // Mark this race as predicted

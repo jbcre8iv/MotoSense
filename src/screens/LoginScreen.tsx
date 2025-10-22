@@ -12,7 +12,7 @@ import {
   SafeAreaView,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { login } from '../services/authService';
+import { login, resetPassword } from '../services/authService';
 
 export default function LoginScreen({ navigation }: any) {
   const [email, setEmail] = useState('');
@@ -37,6 +37,31 @@ export default function LoginScreen({ navigation }: any) {
       Alert.alert('Login Failed', error.message || 'Invalid email or password');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      Alert.alert(
+        'Email Required',
+        'Please enter your email address first, then tap Forgot Password.'
+      );
+      return;
+    }
+
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      await resetPassword(email.trim().toLowerCase());
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert(
+        'Reset Email Sent',
+        'Check your email for a password reset link. The link will expire in 1 hour.',
+        [{ text: 'OK' }]
+      );
+    } catch (error: any) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Error', error.message || 'Failed to send reset email');
     }
   };
 
@@ -87,10 +112,7 @@ export default function LoginScreen({ navigation }: any) {
             {/* Forgot Password */}
             <TouchableOpacity
               style={styles.forgotPassword}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                Alert.alert('Coming Soon', 'Password reset feature will be available soon!');
-              }}
+              onPress={handleForgotPassword}
               disabled={loading}
             >
               <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
