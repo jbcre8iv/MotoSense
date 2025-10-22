@@ -61,8 +61,8 @@ export default function ProfileScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              // Clear AsyncStorage data
-              await clearAllData();
+              // Clear AsyncStorage data AND Supabase predictions
+              await clearAllData(user?.id);
 
               // Clear sample data from Supabase
               await clearSampleData();

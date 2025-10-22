@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UserProfile, Prediction, Achievement } from '../types';
 import { ACHIEVEMENTS } from '../data/achievements';
 import { mockRaces } from '../data';
+import { deleteAllUserPredictions } from './predictionsService';
 
 const KEYS = {
   USER_PROFILE: '@motosense_user_profile',
@@ -380,12 +381,25 @@ export const initializeUserProfile = async (): Promise<UserProfile> => {
 };
 
 // Clear all data (for testing purposes)
-export const clearAllData = async (): Promise<boolean> => {
+export const clearAllData = async (userId?: string): Promise<boolean> => {
   try {
+    console.log('🧹 [CLEAR ALL DATA] Clearing AsyncStorage...');
+    // Clear AsyncStorage
     await AsyncStorage.multiRemove([KEYS.USER_PROFILE, KEYS.PREDICTIONS]);
+
+    // Clear prediction history key if it exists
+    await AsyncStorage.removeItem('@prediction_history');
+
+    // Clear Supabase predictions if userId provided
+    if (userId) {
+      console.log('🗑️ [CLEAR ALL DATA] Deleting Supabase predictions for user:', userId);
+      await deleteAllUserPredictions(userId);
+    }
+
+    console.log('✅ [CLEAR ALL DATA] All data cleared successfully');
     return true;
   } catch (error) {
-    console.error('Error clearing data:', error);
+    console.error('❌ [CLEAR ALL DATA] Error clearing data:', error);
     return false;
   }
 };
