@@ -77,6 +77,8 @@ export interface UserProfile {
   longestStreak: number;
   totalPoints: number;
   lastPredictionDate?: string;
+  lastRaceRound?: number; // Track the last race round predicted for streak calculation
+  predictedRaceIds?: string[]; // Track which races have been predicted
 }
 
 export type AchievementTier = 'bronze' | 'silver' | 'gold' | 'platinum';

@@ -1,13 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, SafeAreaView } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { mockRaces, mockTracks, mockRiders } from '../data';
 import { Prediction } from '../types';
-import { savePrediction, updateUserStats } from '../services/storageService';
+import { savePrediction, updateUserStats, getPredictionForRace } from '../services/storageService';
 
 export default function PredictionsScreen() {
   const [selectedRace, setSelectedRace] = useState(mockRaces[0]);
   const [predictions, setPredictions] = useState<{ [position: number]: string }>({});
+  const [hasExistingPrediction, setHasExistingPrediction] = useState(false);
+
+  // Check if prediction already exists for this race
+  useEffect(() => {
+    const checkExistingPrediction = async () => {
+      const existing = await getPredictionForRace(selectedRace.id);
+      setHasExistingPrediction(!!existing);
+    };
+    checkExistingPrediction();
+  }, [selectedRace.id]);
 
   const handleRiderSelect = (position: number, riderId: string) => {
     // Light haptic feedback for selection
@@ -28,6 +38,13 @@ export default function PredictionsScreen() {
       return;
     }
 
+    // Check if prediction already exists for this race
+    if (hasExistingPrediction) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Already Predicted', 'You have already made a prediction for this race. Each race can only be predicted once to maintain streak integrity.');
+      return;
+    }
+
     try {
       const prediction: Prediction = {
         id: `prediction_${Date.now()}`,
@@ -42,6 +59,9 @@ export default function PredictionsScreen() {
 
       await savePrediction(prediction);
       await updateUserStats(prediction);
+
+      // Mark this race as predicted
+      setHasExistingPrediction(true);
 
       // Success haptic!
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

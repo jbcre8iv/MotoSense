@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UserProfile, Prediction, Achievement } from '../types';
 import { ACHIEVEMENTS } from '../data/achievements';
+import { mockRaces } from '../data';
 
 const KEYS = {
   USER_PROFILE: '@motosense_user_profile',
@@ -62,6 +63,7 @@ export const createDefaultProfile = (): UserProfile => {
     currentStreak: 0,
     longestStreak: 0,
     totalPoints: 0,
+    predictedRaceIds: [],
   };
 };
 
@@ -98,16 +100,13 @@ export const getPredictionForRace = async (raceId: string): Promise<Prediction |
   }
 };
 
-// Helper function to check if dates are consecutive races
-const isConsecutiveRace = (lastDate: string | undefined, currentDate: string): boolean => {
-  if (!lastDate) return true; // First prediction
+// Helper function to check if race rounds are consecutive
+const isConsecutiveRound = (lastRound: number | undefined, currentRound: number): boolean => {
+  if (lastRound === undefined) return true; // First prediction
 
-  const last = new Date(lastDate);
-  const current = new Date(currentDate);
-  const daysDiff = Math.floor((current.getTime() - last.getTime()) / (1000 * 60 * 60 * 24));
-
-  // Consider consecutive if within 14 days (typical time between races)
-  return daysDiff > 0 && daysDiff <= 14;
+  // Races are consecutive if the current round is exactly 1 more than the last
+  // OR if it's the same round (shouldn't happen with duplicate prevention, but safety check)
+  return currentRound === lastRound + 1;
 };
 
 // Update user stats after making a prediction
@@ -123,23 +122,47 @@ export const updateUserStats = async (newPrediction: Prediction): Promise<boolea
     console.log('📊 [UPDATE STATS] Before update:', {
       totalPredictions: profile.totalPredictions,
       currentStreak: profile.currentStreak,
-      totalPoints: profile.totalPoints
+      totalPoints: profile.totalPoints,
+      lastRaceRound: profile.lastRaceRound
     });
+
+    // Get the race information to find the round number
+    const race = mockRaces.find(r => r.id === newPrediction.raceId);
+    if (!race) {
+      console.error('❌ [UPDATE STATS] Race not found:', newPrediction.raceId);
+      return false;
+    }
+
+    // Check if this race was already predicted (double check)
+    if (profile.predictedRaceIds && profile.predictedRaceIds.includes(newPrediction.raceId)) {
+      console.warn('⚠️ [UPDATE STATS] Race already predicted, not updating stats');
+      return false;
+    }
 
     // Update total predictions
     profile.totalPredictions += 1;
 
-    // Update streak
-    const isConsecutive = isConsecutiveRace(profile.lastPredictionDate, newPrediction.timestamp);
+    // Track predicted races
+    if (!profile.predictedRaceIds) {
+      profile.predictedRaceIds = [];
+    }
+    profile.predictedRaceIds.push(newPrediction.raceId);
+
+    // Update streak based on race rounds
+    const isConsecutive = isConsecutiveRound(profile.lastRaceRound, race.round);
     if (isConsecutive) {
       profile.currentStreak += 1;
       if (profile.currentStreak > profile.longestStreak) {
         profile.longestStreak = profile.currentStreak;
       }
+      console.log(`🔥 [STREAK] Consecutive! Round ${profile.lastRaceRound || 'none'} → ${race.round}`);
     } else {
       profile.currentStreak = 1;
+      console.log(`❌ [STREAK] Broken! Round ${profile.lastRaceRound || 'none'} → ${race.round}`);
     }
+
     profile.lastPredictionDate = newPrediction.timestamp;
+    profile.lastRaceRound = race.round;
 
     // Calculate Racing IQ level based on total predictions
     profile.racingIQLevel = Math.floor(profile.totalPredictions / 5) + 1;
@@ -147,7 +170,9 @@ export const updateUserStats = async (newPrediction: Prediction): Promise<boolea
     console.log('📊 [UPDATE STATS] After update:', {
       totalPredictions: profile.totalPredictions,
       currentStreak: profile.currentStreak,
-      racingIQLevel: profile.racingIQLevel
+      racingIQLevel: profile.racingIQLevel,
+      lastRaceRound: profile.lastRaceRound,
+      predictedRaces: profile.predictedRaceIds.length
     });
 
     // Update achievement progress
@@ -245,6 +270,10 @@ export const initializeUserProfile = async (): Promise<UserProfile> => {
       }
       if (existingProfile.totalPoints === undefined) {
         existingProfile.totalPoints = 0;
+        needsUpdate = true;
+      }
+      if (existingProfile.predictedRaceIds === undefined) {
+        existingProfile.predictedRaceIds = [];
         needsUpdate = true;
       }
 
