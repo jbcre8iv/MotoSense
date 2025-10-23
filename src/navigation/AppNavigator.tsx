@@ -188,11 +188,15 @@ export default function AppNavigator() {
     );
   }
 
+  const handleOnboardingComplete = () => {
+    setOnboardingCompleted(true);
+  };
+
   return (
     <NavigationContainer>
       {/* Show onboarding for first-time users */}
       {!onboardingCompleted ? (
-        <OnboardingScreen />
+        <OnboardingScreen onComplete={handleOnboardingComplete} />
       ) : user ? (
         // User is authenticated - show main tabs
         <MainTabs />

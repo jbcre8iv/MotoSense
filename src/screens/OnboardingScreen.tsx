@@ -67,7 +67,11 @@ const slides: OnboardingSlide[] = [
   },
 ];
 
-export default function OnboardingScreen() {
+interface OnboardingScreenProps {
+  onComplete?: () => void;
+}
+
+export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
   const flatListRef = useRef<FlatList>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isCompleting, setIsCompleting] = useState(false);
@@ -103,7 +107,8 @@ export default function OnboardingScreen() {
     try {
       setIsCompleting(true);
       await AsyncStorage.setItem('@onboarding_completed', 'true');
-      // AppNavigator is watching this value and will automatically navigate to auth
+      // Notify AppNavigator that onboarding is complete
+      onComplete?.();
     } catch (error) {
       console.error('Error saving onboarding status:', error);
       setIsCompleting(false);
