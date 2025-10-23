@@ -56,7 +56,7 @@ export interface FriendStats {
  */
 export const followUser = async (userId: string, targetUserId: string): Promise<boolean> => {
   try {
-    console.log('=e [FRIENDS] Following user:', targetUserId);
+    console.log('[FRIENDS] Following user:', targetUserId);
 
     const { error } = await supabase
       .from('follows')
@@ -71,7 +71,7 @@ export const followUser = async (userId: string, targetUserId: string): Promise<
     console.log(' [FRIENDS] User followed successfully');
     return true;
   } catch (error) {
-    console.error('L [FRIENDS] Error following user:', error);
+    console.error('[FRIENDS] Error following user:', error);
     return false;
   }
 };
@@ -81,7 +81,7 @@ export const followUser = async (userId: string, targetUserId: string): Promise<
  */
 export const unfollowUser = async (userId: string, targetUserId: string): Promise<boolean> => {
   try {
-    console.log('=e [FRIENDS] Unfollowing user:', targetUserId);
+    console.log('[FRIENDS] Unfollowing user:', targetUserId);
 
     const { error } = await supabase
       .from('follows')
@@ -94,7 +94,7 @@ export const unfollowUser = async (userId: string, targetUserId: string): Promis
     console.log(' [FRIENDS] User unfollowed successfully');
     return true;
   } catch (error) {
-    console.error('L [FRIENDS] Error unfollowing user:', error);
+    console.error('[FRIENDS] Error unfollowing user:', error);
     return false;
   }
 };
@@ -115,7 +115,7 @@ export const isFollowing = async (userId: string, targetUserId: string): Promise
 
     return !!data;
   } catch (error) {
-    console.error('L [FRIENDS] Error checking follow status:', error);
+    console.error('[FRIENDS] Error checking follow status:', error);
     return false;
   }
 };
@@ -125,7 +125,7 @@ export const isFollowing = async (userId: string, targetUserId: string): Promise
  */
 export const getFollowing = async (userId: string): Promise<FriendProfile[]> => {
   try {
-    console.log('=e [FRIENDS] Fetching following list for user:', userId);
+    console.log('[FRIENDS] Fetching following list for user:', userId);
 
     const { data: follows, error: followsError } = await supabase
       .from('follows')
@@ -163,7 +163,7 @@ export const getFollowing = async (userId: string): Promise<FriendProfile[]> => 
     console.log(' [FRIENDS] Following list fetched:', friendProfiles.length);
     return friendProfiles;
   } catch (error) {
-    console.error('L [FRIENDS] Error fetching following list:', error);
+    console.error('[FRIENDS] Error fetching following list:', error);
     return [];
   }
 };
@@ -173,7 +173,7 @@ export const getFollowing = async (userId: string): Promise<FriendProfile[]> => 
  */
 export const getFollowers = async (userId: string): Promise<FriendProfile[]> => {
   try {
-    console.log('=e [FRIENDS] Fetching followers for user:', userId);
+    console.log('[FRIENDS] Fetching followers for user:', userId);
 
     const { data: follows, error: followsError } = await supabase
       .from('follows')
@@ -220,7 +220,7 @@ export const getFollowers = async (userId: string): Promise<FriendProfile[]> => 
     console.log(' [FRIENDS] Followers fetched:', friendProfiles.length);
     return friendProfiles;
   } catch (error) {
-    console.error('L [FRIENDS] Error fetching followers:', error);
+    console.error('[FRIENDS] Error fetching followers:', error);
     return [];
   }
 };
@@ -234,7 +234,7 @@ export const searchUsers = async (
   limit: number = 20
 ): Promise<FriendProfile[]> => {
   try {
-    console.log('= [FRIENDS] Searching users:', query);
+    console.log('[FRIENDS] Searching users:', query);
 
     if (!query || query.trim().length < 2) {
       return [];
@@ -281,7 +281,7 @@ export const searchUsers = async (
     console.log(' [FRIENDS] Found', friendProfiles.length, 'users');
     return friendProfiles;
   } catch (error) {
-    console.error('L [FRIENDS] Error searching users:', error);
+    console.error('[FRIENDS] Error searching users:', error);
     return [];
   }
 };
@@ -294,7 +294,7 @@ export const getFriendsLeaderboard = async (
   limit: number = 50
 ): Promise<FriendProfile[]> => {
   try {
-    console.log('<Æ [FRIENDS] Fetching friends leaderboard');
+    console.log('[FRIENDS] Fetching friends leaderboard');
 
     const friends = await getFollowing(userId);
 
@@ -304,7 +304,7 @@ export const getFriendsLeaderboard = async (
     console.log(' [FRIENDS] Friends leaderboard fetched:', leaderboard.length);
     return leaderboard.slice(0, limit);
   } catch (error) {
-    console.error('L [FRIENDS] Error fetching friends leaderboard:', error);
+    console.error('[FRIENDS] Error fetching friends leaderboard:', error);
     return [];
   }
 };
@@ -317,7 +317,7 @@ export const getFriendActivity = async (
   limit: number = 20
 ): Promise<FriendActivity[]> => {
   try {
-    console.log('=ð [FRIENDS] Fetching friend activity feed');
+    console.log('[FRIENDS] Fetching friend activity feed');
 
     // Get list of friends
     const friends = await getFollowing(userId);
@@ -375,7 +375,7 @@ export const getFriendActivity = async (
     console.log(' [FRIENDS] Activity feed fetched:', activities.length, 'activities');
     return activities;
   } catch (error) {
-    console.error('L [FRIENDS] Error fetching friend activity:', error);
+    console.error('[FRIENDS] Error fetching friend activity:', error);
     return [];
   }
 };
@@ -388,7 +388,7 @@ export const getHeadToHeadStats = async (
   friendId: string
 ): Promise<FriendStats | null> => {
   try {
-    console.log('=Ê [FRIENDS] Fetching head-to-head stats');
+    console.log('[FRIENDS] Fetching head-to-head stats');
 
     // Get all races where both users made predictions
     const { data: userPredictions } = await supabase
@@ -480,7 +480,7 @@ export const getHeadToHeadStats = async (
     console.log(' [FRIENDS] Head-to-head stats calculated:', stats);
     return stats;
   } catch (error) {
-    console.error('L [FRIENDS] Error fetching head-to-head stats:', error);
+    console.error('[FRIENDS] Error fetching head-to-head stats:', error);
     return null;
   }
 };
@@ -493,7 +493,7 @@ export const getSuggestedFriends = async (
   limit: number = 10
 ): Promise<FriendProfile[]> => {
   try {
-    console.log('=¡ [FRIENDS] Fetching suggested friends');
+    console.log('[FRIENDS] Fetching suggested friends');
 
     // Get users with highest points that user isn't following
     const { data: currentFollows } = await supabase
@@ -529,7 +529,7 @@ export const getSuggestedFriends = async (
     console.log(' [FRIENDS] Suggested friends fetched:', suggestions.length);
     return suggestions;
   } catch (error) {
-    console.error('L [FRIENDS] Error fetching suggested friends:', error);
+    console.error('[FRIENDS] Error fetching suggested friends:', error);
     return [];
   }
 };
@@ -556,7 +556,7 @@ export const getFriendCounts = async (
       followers: followersData?.length || 0,
     };
   } catch (error) {
-    console.error('L [FRIENDS] Error fetching friend counts:', error);
+    console.error('[FRIENDS] Error fetching friend counts:', error);
     return { following: 0, followers: 0 };
   }
 };
