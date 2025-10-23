@@ -1,145 +1,228 @@
--- Migration 010: Expanded Predictions
--- Add support for additional prediction categories beyond top 5 finishers
+-- Migration 010: Expanded Predictions System
+-- Adds holeshot, fastest lap, and qualifying predictions
+-- Author: MotoSense Development Team
+-- Date: January 2025
 
--- Add new columns to predictions table for expanded predictions
-ALTER TABLE predictions ADD COLUMN IF NOT EXISTS holeshot_winner_id UUID REFERENCES riders(id) ON DELETE SET NULL;
-ALTER TABLE predictions ADD COLUMN IF NOT EXISTS fastest_lap_rider_id UUID REFERENCES riders(id) ON DELETE SET NULL;
-ALTER TABLE predictions ADD COLUMN IF NOT EXISTS qualifying_1_id UUID REFERENCES riders(id) ON DELETE SET NULL;
-ALTER TABLE predictions ADD COLUMN IF NOT EXISTS qualifying_2_id UUID REFERENCES riders(id) ON DELETE SET NULL;
-ALTER TABLE predictions ADD COLUMN IF NOT EXISTS qualifying_3_id UUID REFERENCES riders(id) ON DELETE SET NULL;
+-- ============================================================================
+-- EXTEND RACES TABLE
+-- ============================================================================
 
--- Add bonus points columns
-ALTER TABLE predictions ADD COLUMN IF NOT EXISTS holeshot_points INTEGER DEFAULT 0;
-ALTER TABLE predictions ADD COLUMN IF NOT EXISTS fastest_lap_points INTEGER DEFAULT 0;
-ALTER TABLE predictions ADD COLUMN IF NOT EXISTS qualifying_points INTEGER DEFAULT 0;
+-- Add bonus prediction result columns to races table
+ALTER TABLE races ADD COLUMN IF NOT EXISTS holeshot_winner_id TEXT;
+ALTER TABLE races ADD COLUMN IF NOT EXISTS fastest_lap_rider_id TEXT;
+ALTER TABLE races ADD COLUMN IF NOT EXISTS qualifying_results JSONB DEFAULT '[]';
 
--- Create indexes for expanded predictions
-CREATE INDEX IF NOT EXISTS idx_predictions_holeshot ON predictions(holeshot_winner_id);
-CREATE INDEX IF NOT EXISTS idx_predictions_fastest_lap ON predictions(fastest_lap_rider_id);
-CREATE INDEX IF NOT EXISTS idx_predictions_qualifying_1 ON predictions(qualifying_1_id);
+-- Add indexes for new columns
+CREATE INDEX IF NOT EXISTS idx_races_holeshot ON races(holeshot_winner_id);
+CREATE INDEX IF NOT EXISTS idx_races_fastest_lap ON races(fastest_lap_rider_id);
 
--- Add new columns to race_results table for tracking actual results
-ALTER TABLE race_results ADD COLUMN IF NOT EXISTS was_holeshot_winner BOOLEAN DEFAULT FALSE;
-ALTER TABLE race_results ADD COLUMN IF NOT EXISTS had_fastest_lap BOOLEAN DEFAULT FALSE;
-ALTER TABLE race_results ADD COLUMN IF NOT EXISTS qualifying_position INTEGER;
+-- ============================================================================
+-- EXTEND PREDICTION_SCORES TABLE
+-- ============================================================================
 
--- Create indexes
-CREATE INDEX IF NOT EXISTS idx_race_results_holeshot ON race_results(was_holeshot_winner);
-CREATE INDEX IF NOT EXISTS idx_race_results_fastest_lap ON race_results(had_fastest_lap);
-CREATE INDEX IF NOT EXISTS idx_race_results_qualifying ON race_results(qualifying_position);
+-- Add bonus prediction scoring columns
+ALTER TABLE prediction_scores ADD COLUMN IF NOT EXISTS bonus_points INTEGER DEFAULT 0;
+ALTER TABLE prediction_scores ADD COLUMN IF NOT EXISTS holeshot_correct BOOLEAN DEFAULT FALSE;
+ALTER TABLE prediction_scores ADD COLUMN IF NOT EXISTS fastest_lap_correct BOOLEAN DEFAULT FALSE;
 
--- Create function to calculate expanded prediction points
-CREATE OR REPLACE FUNCTION calculate_expanded_prediction_points(p_prediction_id UUID)
-RETURNS INTEGER AS $$
+-- ============================================================================
+-- SCORING FUNCTIONS
+-- ============================================================================
+
+-- Function to calculate bonus prediction points
+CREATE OR REPLACE FUNCTION calculate_bonus_points(
+  p_user_id UUID,
+  p_race_id TEXT
+) RETURNS INTEGER AS $$
 DECLARE
-  v_prediction RECORD;
-  v_race_id UUID;
-  v_holeshot_points INTEGER := 0;
-  v_fastest_lap_points INTEGER := 0;
-  v_qualifying_points INTEGER := 0;
-  v_total_bonus INTEGER := 0;
+  v_prediction JSONB;
+  v_holeshot_winner TEXT;
+  v_fastest_lap_rider TEXT;
+  v_bonus_points INTEGER := 0;
+  v_predicted_holeshot TEXT;
+  v_predicted_fastest_lap TEXT;
 BEGIN
-  -- Get prediction details
-  SELECT * INTO v_prediction
+  -- Get user's prediction
+  SELECT predictions INTO v_prediction
   FROM predictions
-  WHERE id = p_prediction_id;
+  WHERE user_id = p_user_id AND race_id = p_race_id;
 
   IF v_prediction IS NULL THEN
     RETURN 0;
   END IF;
 
-  v_race_id := v_prediction.race_id;
+  -- Get race results
+  SELECT holeshot_winner_id, fastest_lap_rider_id
+  INTO v_holeshot_winner, v_fastest_lap_rider
+  FROM races
+  WHERE id = p_race_id;
 
-  -- Check holeshot winner (15 bonus points)
-  IF v_prediction.holeshot_winner_id IS NOT NULL THEN
-    IF EXISTS (
-      SELECT 1 FROM race_results
-      WHERE race_id = v_race_id
-        AND rider_id = v_prediction.holeshot_winner_id
-        AND was_holeshot_winner = TRUE
-    ) THEN
-      v_holeshot_points := 15;
-    END IF;
+  -- Extract bonus predictions from JSONB
+  v_predicted_holeshot := v_prediction->>'holeshot';
+  v_predicted_fastest_lap := v_prediction->>'fastestLap';
+
+  -- Award points for correct holeshot prediction (5 points)
+  IF v_predicted_holeshot IS NOT NULL AND v_predicted_holeshot = v_holeshot_winner THEN
+    v_bonus_points := v_bonus_points + 5;
   END IF;
 
-  -- Check fastest lap (10 bonus points)
-  IF v_prediction.fastest_lap_rider_id IS NOT NULL THEN
-    IF EXISTS (
-      SELECT 1 FROM race_results
-      WHERE race_id = v_race_id
-        AND rider_id = v_prediction.fastest_lap_rider_id
-        AND had_fastest_lap = TRUE
-    ) THEN
-      v_fastest_lap_points := 10;
-    END IF;
+  -- Award points for correct fastest lap prediction (5 points)
+  IF v_predicted_fastest_lap IS NOT NULL AND v_predicted_fastest_lap = v_fastest_lap_rider THEN
+    v_bonus_points := v_bonus_points + 5;
   END IF;
 
-  -- Check qualifying predictions (5 points each for correct position)
-  DECLARE
-    v_qual_1_pos INTEGER;
-    v_qual_2_pos INTEGER;
-    v_qual_3_pos INTEGER;
-  BEGIN
-    -- Get actual qualifying positions
-    IF v_prediction.qualifying_1_id IS NOT NULL THEN
-      SELECT qualifying_position INTO v_qual_1_pos
-      FROM race_results
-      WHERE race_id = v_race_id AND rider_id = v_prediction.qualifying_1_id;
-
-      IF v_qual_1_pos = 1 THEN
-        v_qualifying_points := v_qualifying_points + 5;
-      END IF;
-    END IF;
-
-    IF v_prediction.qualifying_2_id IS NOT NULL THEN
-      SELECT qualifying_position INTO v_qual_2_pos
-      FROM race_results
-      WHERE race_id = v_race_id AND rider_id = v_prediction.qualifying_2_id;
-
-      IF v_qual_2_pos = 2 THEN
-        v_qualifying_points := v_qualifying_points + 5;
-      END IF;
-    END IF;
-
-    IF v_prediction.qualifying_3_id IS NOT NULL THEN
-      SELECT qualifying_position INTO v_qual_3_pos
-      FROM race_results
-      WHERE race_id = v_race_id AND rider_id = v_prediction.qualifying_3_id;
-
-      IF v_qual_3_pos = 3 THEN
-        v_qualifying_points := v_qualifying_points + 5;
-      END IF;
-    END IF;
-  END;
-
-  -- Update prediction with bonus points
-  UPDATE predictions
-  SET holeshot_points = v_holeshot_points,
-      fastest_lap_points = v_fastest_lap_points,
-      qualifying_points = v_qualifying_points
-  WHERE id = p_prediction_id;
-
-  v_total_bonus := v_holeshot_points + v_fastest_lap_points + v_qualifying_points;
-
-  RETURN v_total_bonus;
+  RETURN v_bonus_points;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Add comment
-COMMENT ON FUNCTION calculate_expanded_prediction_points IS 'Calculate bonus points for expanded predictions (holeshot, fastest lap, qualifying)';
+-- Function to recalculate all scores including bonus points
+CREATE OR REPLACE FUNCTION recalculate_prediction_score(
+  p_user_id UUID,
+  p_race_id TEXT
+) RETURNS void AS $$
+DECLARE
+  v_base_points INTEGER;
+  v_bonus_points INTEGER;
+  v_total_points INTEGER;
+  v_holeshot_correct BOOLEAN;
+  v_fastest_lap_correct BOOLEAN;
+BEGIN
+  -- Get existing base points (from standard top-5 predictions)
+  SELECT COALESCE(points_earned, 0) - COALESCE(bonus_points, 0)
+  INTO v_base_points
+  FROM prediction_scores
+  WHERE user_id = p_user_id AND race_id = p_race_id;
 
--- Grant permissions
-GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO authenticated;
+  -- Calculate bonus points
+  v_bonus_points := calculate_bonus_points(p_user_id, p_race_id);
 
-COMMENT ON COLUMN predictions.holeshot_winner_id IS 'Predicted holeshot winner (first to first turn)';
-COMMENT ON COLUMN predictions.fastest_lap_rider_id IS 'Predicted fastest lap rider';
-COMMENT ON COLUMN predictions.qualifying_1_id IS 'Predicted 1st place in qualifying';
-COMMENT ON COLUMN predictions.qualifying_2_id IS 'Predicted 2nd place in qualifying';
-COMMENT ON COLUMN predictions.qualifying_3_id IS 'Predicted 3rd place in qualifying';
-COMMENT ON COLUMN predictions.holeshot_points IS 'Bonus points earned from holeshot prediction';
-COMMENT ON COLUMN predictions.fastest_lap_points IS 'Bonus points earned from fastest lap prediction';
-COMMENT ON COLUMN predictions.qualifying_points IS 'Bonus points earned from qualifying predictions';
+  -- Calculate total points
+  v_total_points := COALESCE(v_base_points, 0) + v_bonus_points;
 
-COMMENT ON COLUMN race_results.was_holeshot_winner IS 'Whether this rider won the holeshot';
-COMMENT ON COLUMN race_results.had_fastest_lap IS 'Whether this rider had the fastest lap';
-COMMENT ON COLUMN race_results.qualifying_position IS 'Riders position in qualifying';
+  -- Check holeshot correctness
+  WITH prediction_data AS (
+    SELECT 
+      (predictions->>'holeshot') as pred_holeshot,
+      r.holeshot_winner_id
+    FROM predictions p
+    JOIN races r ON r.id = p.race_id
+    WHERE p.user_id = p_user_id AND p.race_id = p_race_id
+  )
+  SELECT (pred_holeshot = holeshot_winner_id) INTO v_holeshot_correct
+  FROM prediction_data;
+
+  -- Check fastest lap correctness
+  WITH prediction_data AS (
+    SELECT 
+      (predictions->>'fastestLap') as pred_fastest,
+      r.fastest_lap_rider_id
+    FROM predictions p
+    JOIN races r ON r.id = p.race_id
+    WHERE p.user_id = p_user_id AND p.race_id = p_race_id
+  )
+  SELECT (pred_fastest = fastest_lap_rider_id) INTO v_fastest_lap_correct
+  FROM prediction_data;
+
+  -- Update prediction_scores
+  UPDATE prediction_scores
+  SET 
+    bonus_points = v_bonus_points,
+    points_earned = v_total_points,
+    holeshot_correct = COALESCE(v_holeshot_correct, FALSE),
+    fastest_lap_correct = COALESCE(v_fastest_lap_correct, FALSE),
+    calculated_at = NOW()
+  WHERE user_id = p_user_id AND race_id = p_race_id;
+
+  -- Insert if doesn't exist
+  IF NOT FOUND THEN
+    INSERT INTO prediction_scores (
+      user_id,
+      race_id,
+      points_earned,
+      bonus_points,
+      holeshot_correct,
+      fastest_lap_correct
+    ) VALUES (
+      p_user_id,
+      p_race_id,
+      v_total_points,
+      v_bonus_points,
+      COALESCE(v_holeshot_correct, FALSE),
+      COALESCE(v_fastest_lap_correct, FALSE)
+    );
+  END IF;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ============================================================================
+-- HELPER FUNCTIONS FOR ADMINS
+-- ============================================================================
+
+-- Function to set holeshot winner
+CREATE OR REPLACE FUNCTION set_holeshot_winner(
+  p_race_id TEXT,
+  p_rider_id TEXT
+) RETURNS void AS $$
+BEGIN
+  -- Check if user is admin
+  IF NOT EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = TRUE) THEN
+    RAISE EXCEPTION 'Only admins can set holeshot winner';
+  END IF;
+
+  -- Update race
+  UPDATE races
+  SET holeshot_winner_id = p_rider_id
+  WHERE id = p_race_id;
+
+  -- Recalculate scores for all users who made predictions
+  PERFORM recalculate_prediction_score(user_id, p_race_id)
+  FROM predictions
+  WHERE race_id = p_race_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to set fastest lap rider
+CREATE OR REPLACE FUNCTION set_fastest_lap_rider(
+  p_race_id TEXT,
+  p_rider_id TEXT
+) RETURNS void AS $$
+BEGIN
+  -- Check if user is admin
+  IF NOT EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = TRUE) THEN
+    RAISE EXCEPTION 'Only admins can set fastest lap rider';
+  END IF;
+
+  -- Update race
+  UPDATE races
+  SET fastest_lap_rider_id = p_rider_id
+  WHERE id = p_race_id;
+
+  -- Recalculate scores for all users who made predictions
+  PERFORM recalculate_prediction_score(user_id, p_race_id)
+  FROM predictions
+  WHERE race_id = p_race_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ============================================================================
+-- GRANTS
+-- ============================================================================
+
+GRANT EXECUTE ON FUNCTION calculate_bonus_points TO authenticated;
+GRANT EXECUTE ON FUNCTION recalculate_prediction_score TO authenticated;
+GRANT EXECUTE ON FUNCTION set_holeshot_winner TO authenticated;
+GRANT EXECUTE ON FUNCTION set_fastest_lap_rider TO authenticated;
+
+-- ============================================================================
+-- MIGRATION COMPLETE
+-- ============================================================================
+
+-- Migration 010 complete: Expanded Predictions System ready
+DO $$
+BEGIN
+  RAISE NOTICE 'Expanded Predictions migration complete!';
+  RAISE NOTICE 'New features:';
+  RAISE NOTICE '  - Holeshot winner prediction (5 bonus points)';
+  RAISE NOTICE '  - Fastest lap prediction (5 bonus points)';
+  RAISE NOTICE '  - Admin functions for setting bonus results';
+END $$;

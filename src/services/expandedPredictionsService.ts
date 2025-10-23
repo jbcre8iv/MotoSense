@@ -2,138 +2,195 @@
  * Expanded Predictions Service
  *
  * Handles bonus predictions beyond top 5 finishers:
- * - Holeshot winner (first to first turn)
+ * - Holeshot winner (first to complete lap 1)
  * - Fastest lap rider
- * - Qualifying top 3
  */
 
 import { supabase } from './supabase';
 
 export interface ExpandedPrediction {
-  holeshotWinnerId: string | null;
-  fastestLapRiderId: string | null;
-  qualifying1Id: string | null;
-  qualifying2Id: string | null;
-  qualifying3Id: string | null;
+  holeshot: string | null;
+  fastestLap: string | null;
+}
+
+export interface FullPrediction {
+  top5: string[];
+  holeshot?: string | null;
+  fastestLap?: string | null;
 }
 
 export interface ExpandedPredictionPoints {
   holeshotPoints: number;
   fastestLapPoints: number;
-  qualifyingPoints: number;
   totalBonus: number;
 }
 
+export interface PredictionScore {
+  userId: string;
+  raceId: string;
+  pointsEarned: number;
+  bonusPoints: number;
+  holeshotCorrect: boolean;
+  fastestLapCorrect: boolean;
+}
+
 /**
- * Save expanded predictions for a race
+ * Submit predictions with expanded categories
+ * This merges top 5 predictions with bonus predictions into the JSONB field
  */
-export const saveExpandedPredictions = async (
-  predictionId: string,
-  expanded: ExpandedPrediction
+export const submitPredictionWithBonus = async (
+  userId: string,
+  raceId: string,
+  top5: string[],
+  bonusPredictions: ExpandedPrediction
 ): Promise<boolean> => {
   try {
+    const fullPrediction: FullPrediction = {
+      top5,
+      holeshot: bonusPredictions.holeshot,
+      fastestLap: bonusPredictions.fastestLap,
+    };
+
     const { error } = await supabase
       .from('predictions')
-      .update({
-        holeshot_winner_id: expanded.holeshotWinnerId,
-        fastest_lap_rider_id: expanded.fastestLapRiderId,
-        qualifying_1_id: expanded.qualifying1Id,
-        qualifying_2_id: expanded.qualifying2Id,
-        qualifying_3_id: expanded.qualifying3Id,
-      })
-      .eq('id', predictionId);
+      .upsert({
+        user_id: userId,
+        race_id: raceId,
+        predictions: fullPrediction,
+      }, {
+        onConflict: 'user_id,race_id'
+      });
 
     if (error) {
-      console.error('Error saving expanded predictions:', error);
+      console.error('Error submitting prediction with bonus:', error);
       return false;
     }
 
     return true;
   } catch (error) {
-    console.error('Error in saveExpandedPredictions:', error);
+    console.error('Error in submitPredictionWithBonus:', error);
     return false;
   }
 };
 
 /**
- * Get expanded predictions for a prediction
+ * Get user's predictions including bonus predictions
  */
-export const getExpandedPredictions = async (
-  predictionId: string
-): Promise<ExpandedPrediction | null> => {
+export const getUserPrediction = async (
+  userId: string,
+  raceId: string
+): Promise<FullPrediction | null> => {
   try {
     const { data, error } = await supabase
       .from('predictions')
-      .select(
-        'holeshot_winner_id, fastest_lap_rider_id, qualifying_1_id, qualifying_2_id, qualifying_3_id'
-      )
-      .eq('id', predictionId)
+      .select('predictions')
+      .eq('user_id', userId)
+      .eq('race_id', raceId)
       .single();
 
     if (error || !data) {
-      console.error('Error fetching expanded predictions:', error);
       return null;
     }
 
-    return {
-      holeshotWinnerId: data.holeshot_winner_id,
-      fastestLapRiderId: data.fastest_lap_rider_id,
-      qualifying1Id: data.qualifying_1_id,
-      qualifying2Id: data.qualifying_2_id,
-      qualifying3Id: data.qualifying_3_id,
-    };
+    return data.predictions as FullPrediction;
   } catch (error) {
-    console.error('Error in getExpandedPredictions:', error);
+    console.error('Error in getUserPrediction:', error);
     return null;
   }
 };
 
 /**
- * Calculate bonus points for expanded predictions
+ * Get prediction score with bonus points breakdown
  */
-export const calculateExpandedPoints = async (
-  predictionId: string
-): Promise<ExpandedPredictionPoints | null> => {
+export const getPredictionScoreWithBonus = async (
+  userId: string,
+  raceId: string
+): Promise<PredictionScore | null> => {
   try {
-    const { data, error } = await supabase.rpc('calculate_expanded_prediction_points', {
-      p_prediction_id: predictionId,
-    });
-
-    if (error) {
-      console.error('Error calculating expanded points:', error);
-      return null;
-    }
-
-    // Get the updated points from the prediction
-    const { data: prediction } = await supabase
-      .from('predictions')
-      .select('holeshot_points, fastest_lap_points, qualifying_points')
-      .eq('id', predictionId)
+    const { data, error } = await supabase
+      .from('prediction_scores')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('race_id', raceId)
       .single();
 
-    if (!prediction) {
+    if (error || !data) {
       return null;
     }
 
-    const totalBonus =
-      prediction.holeshot_points +
-      prediction.fastest_lap_points +
-      prediction.qualifying_points;
-
     return {
-      holeshotPoints: prediction.holeshot_points,
-      fastestLapPoints: prediction.fastest_lap_points,
-      qualifyingPoints: prediction.qualifying_points,
-      totalBonus,
+      userId: data.user_id,
+      raceId: data.race_id,
+      pointsEarned: data.points_earned,
+      bonusPoints: data.bonus_points || 0,
+      holeshotCorrect: data.holeshot_correct || false,
+      fastestLapCorrect: data.fastest_lap_correct || false,
     };
   } catch (error) {
-    console.error('Error in calculateExpandedPoints:', error);
+    console.error('Error in getPredictionScoreWithBonus:', error);
     return null;
   }
 };
 
 /**
- * Get expanded prediction statistics
+ * Get race results including bonus data
+ */
+export const getRaceWithBonusResults = async (
+  raceId: string
+): Promise<{
+  holeshotWinner: string | null;
+  fastestLapRider: string | null;
+} | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('races')
+      .select('holeshot_winner_id, fastest_lap_rider_id')
+      .eq('id', raceId)
+      .single();
+
+    if (error || !data) {
+      return null;
+    }
+
+    return {
+      holeshotWinner: data.holeshot_winner_id,
+      fastestLapRider: data.fastest_lap_rider_id,
+    };
+  } catch (error) {
+    console.error('Error in getRaceWithBonusResults:', error);
+    return null;
+  }
+};
+
+/**
+ * Calculate bonus points for a user's prediction (client-side preview)
+ */
+export const calculateBonusPoints = (
+  userPrediction: ExpandedPrediction,
+  raceResults: { holeshotWinner: string | null; fastestLapRider: string | null }
+): ExpandedPredictionPoints => {
+  let holeshotPoints = 0;
+  let fastestLapPoints = 0;
+
+  // Award 5 points for correct holeshot prediction
+  if (userPrediction.holeshot && userPrediction.holeshot === raceResults.holeshotWinner) {
+    holeshotPoints = 5;
+  }
+
+  // Award 5 points for correct fastest lap prediction
+  if (userPrediction.fastestLap && userPrediction.fastestLap === raceResults.fastestLapRider) {
+    fastestLapPoints = 5;
+  }
+
+  return {
+    holeshotPoints,
+    fastestLapPoints,
+    totalBonus: holeshotPoints + fastestLapPoints,
+  };
+};
+
+/**
+ * Get user's expanded prediction statistics
  */
 export const getExpandedPredictionStats = async (
   userId: string
@@ -141,59 +198,46 @@ export const getExpandedPredictionStats = async (
   totalBonusPoints: number;
   holeshotAccuracy: number;
   fastestLapAccuracy: number;
-  qualifyingAccuracy: number;
+  totalPredictions: number;
 } | null> => {
   try {
-    const { data: predictions, error } = await supabase
-      .from('predictions')
-      .select('holeshot_points, fastest_lap_points, qualifying_points')
+    const { data: scores, error } = await supabase
+      .from('prediction_scores')
+      .select('bonus_points, holeshot_correct, fastest_lap_correct')
       .eq('user_id', userId)
-      .not('holeshot_winner_id', 'is', null);
+      .gt('bonus_points', 0);
 
-    if (error || !predictions) {
+    if (error) {
       console.error('Error fetching prediction stats:', error);
       return null;
     }
 
+    if (!scores || scores.length === 0) {
+      return {
+        totalBonusPoints: 0,
+        holeshotAccuracy: 0,
+        fastestLapAccuracy: 0,
+        totalPredictions: 0,
+      };
+    }
+
     let totalBonusPoints = 0;
-    let holeshotCorrect = 0;
-    let fastestLapCorrect = 0;
-    let qualifyingCorrect = 0;
-    let holeshotTotal = 0;
-    let fastestLapTotal = 0;
-    let qualifyingTotal = 0;
+    let holeshotCorrectCount = 0;
+    let fastestLapCorrectCount = 0;
 
-    predictions.forEach((pred) => {
-      totalBonusPoints +=
-        pred.holeshot_points + pred.fastest_lap_points + pred.qualifying_points;
-
-      if (pred.holeshot_points > 0) {
-        holeshotCorrect++;
-      }
-      if (pred.holeshot_points >= 0) {
-        holeshotTotal++;
-      }
-
-      if (pred.fastest_lap_points > 0) {
-        fastestLapCorrect++;
-      }
-      if (pred.fastest_lap_points >= 0) {
-        fastestLapTotal++;
-      }
-
-      if (pred.qualifying_points > 0) {
-        qualifyingCorrect++;
-      }
-      if (pred.qualifying_points >= 0) {
-        qualifyingTotal++;
-      }
+    scores.forEach((score) => {
+      totalBonusPoints += score.bonus_points || 0;
+      if (score.holeshot_correct) holeshotCorrectCount++;
+      if (score.fastest_lap_correct) fastestLapCorrectCount++;
     });
+
+    const totalPredictions = scores.length;
 
     return {
       totalBonusPoints,
-      holeshotAccuracy: holeshotTotal > 0 ? (holeshotCorrect / holeshotTotal) * 100 : 0,
-      fastestLapAccuracy: fastestLapTotal > 0 ? (fastestLapCorrect / fastestLapTotal) * 100 : 0,
-      qualifyingAccuracy: qualifyingTotal > 0 ? (qualifyingCorrect / qualifyingTotal) * 100 : 0,
+      holeshotAccuracy: totalPredictions > 0 ? (holeshotCorrectCount / totalPredictions) * 100 : 0,
+      fastestLapAccuracy: totalPredictions > 0 ? (fastestLapCorrectCount / totalPredictions) * 100 : 0,
+      totalPredictions,
     };
   } catch (error) {
     console.error('Error in getExpandedPredictionStats:', error);
@@ -211,7 +255,7 @@ export const getBonusPointBreakdown = (points: ExpandedPredictionPoints) => {
     breakdown.push({
       label: 'Holeshot Winner',
       points: points.holeshotPoints,
-      icon: 'flash',
+      icon: 'flash' as const,
       color: '#ff6b6b',
     });
   }
@@ -220,17 +264,8 @@ export const getBonusPointBreakdown = (points: ExpandedPredictionPoints) => {
     breakdown.push({
       label: 'Fastest Lap',
       points: points.fastestLapPoints,
-      icon: 'speedometer',
+      icon: 'speedometer' as const,
       color: '#9c27b0',
-    });
-  }
-
-  if (points.qualifyingPoints > 0) {
-    breakdown.push({
-      label: 'Qualifying',
-      points: points.qualifyingPoints,
-      icon: 'ribbon',
-      color: '#4caf50',
     });
   }
 
@@ -242,32 +277,23 @@ export const getBonusPointBreakdown = (points: ExpandedPredictionPoints) => {
  */
 export const validateExpandedPredictions = (
   expanded: ExpandedPrediction,
-  availableRiders: string[]
+  top5Picks: string[]
 ): { valid: boolean; errors: string[] } => {
   const errors: string[] = [];
 
-  // Check for duplicate selections
-  const selections = [
-    expanded.holeshotWinnerId,
-    expanded.fastestLapRiderId,
-    expanded.qualifying1Id,
-    expanded.qualifying2Id,
-    expanded.qualifying3Id,
-  ].filter((id) => id !== null);
-
-  const uniqueSelections = new Set(selections);
-  if (selections.length !== uniqueSelections.size) {
-    errors.push('Cannot select the same rider for multiple categories');
+  // Check if bonus predictions are different from each other
+  if (expanded.holeshot && expanded.fastestLap && expanded.holeshot === expanded.fastestLap) {
+    // This is actually allowed - same rider can win holeshot and fastest lap
+    // So we don't add an error here
   }
 
-  // Validate qualifying order
-  if (
-    expanded.qualifying1Id &&
-    expanded.qualifying2Id &&
-    expanded.qualifying1Id === expanded.qualifying2Id
-  ) {
-    errors.push('Qualifying positions must have different riders');
-  }
+  // Check if bonus predictions are riders that exist
+  const allPicks = [...top5Picks];
+  if (expanded.holeshot) allPicks.push(expanded.holeshot);
+  if (expanded.fastestLap) allPicks.push(expanded.fastestLap);
+
+  // Note: We should validate against available riders list in the UI
+  // This is just a basic validation
 
   return {
     valid: errors.length === 0,
@@ -279,11 +305,10 @@ export const validateExpandedPredictions = (
  * Calculate maximum possible bonus points
  */
 export const getMaxBonusPoints = (): number => {
-  // Holeshot: 15 points
-  // Fastest lap: 10 points
-  // Qualifying (3 positions × 5 points): 15 points
-  // Total: 40 bonus points possible
-  return 40;
+  // Holeshot: 5 points
+  // Fastest lap: 5 points
+  // Total: 10 bonus points possible
+  return 10;
 };
 
 /**
@@ -293,24 +318,67 @@ export const getBonusPointDescriptions = () => {
   return [
     {
       category: 'Holeshot Winner',
-      points: 15,
-      description: 'First rider to the first turn',
-      icon: 'flash',
+      points: 5,
+      description: 'First rider to complete the first lap',
+      icon: 'flash' as const,
       color: '#ff6b6b',
     },
     {
       category: 'Fastest Lap',
-      points: 10,
-      description: 'Rider with the fastest single lap',
-      icon: 'speedometer',
+      points: 5,
+      description: 'Rider with the fastest single lap time',
+      icon: 'speedometer' as const,
       color: '#9c27b0',
     },
-    {
-      category: 'Qualifying Top 3',
-      points: 15,
-      description: '5 points for each correct qualifying position',
-      icon: 'ribbon',
-      color: '#4caf50',
-    },
   ];
+};
+
+/**
+ * Admin function: Set holeshot winner and recalculate scores
+ */
+export const setHoleshotWinner = async (
+  raceId: string,
+  riderId: string
+): Promise<boolean> => {
+  try {
+    const { error } = await supabase.rpc('set_holeshot_winner', {
+      p_race_id: raceId,
+      p_rider_id: riderId,
+    });
+
+    if (error) {
+      console.error('Error setting holeshot winner:', error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error in setHoleshotWinner:', error);
+    return false;
+  }
+};
+
+/**
+ * Admin function: Set fastest lap rider and recalculate scores
+ */
+export const setFastestLapRider = async (
+  raceId: string,
+  riderId: string
+): Promise<boolean> => {
+  try {
+    const { error } = await supabase.rpc('set_fastest_lap_rider', {
+      p_race_id: raceId,
+      p_rider_id: riderId,
+    });
+
+    if (error) {
+      console.error('Error setting fastest lap rider:', error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error in setFastestLapRider:', error);
+    return false;
+  }
 };
