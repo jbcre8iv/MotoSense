@@ -15,10 +15,12 @@ import {
   deleteRivalry,
   HeadToHeadRecord,
 } from '../services/rivalriesService';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function RivalryDetailScreen() {
   const route = useRoute();
   const navigation = useNavigation();
+  const { session } = useAuth();
   const { rivalryId } = route.params as { rivalryId: string };
   const [record, setRecord] = useState<HeadToHeadRecord | null>(null);
   const [loading, setLoading] = useState(true);
@@ -28,8 +30,10 @@ export default function RivalryDetailScreen() {
   }, [rivalryId]);
 
   const loadRecord = async () => {
+    if (!session?.user?.id) return;
+
     try {
-      const data = await getHeadToHeadRecord('', rivalryId); // Will need to pass userId
+      const data = await getHeadToHeadRecord(session.user.id, rivalryId);
       setRecord(data);
     } catch (error) {
       console.error('Error loading rivalry record:', error);
