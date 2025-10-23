@@ -8,6 +8,7 @@ import InlinePredictionCard from '../components/InlinePredictionCard';
 import { getPredictionForRace, SupabasePrediction } from '../services/predictionsService';
 import { useAuth } from '../contexts/AuthContext';
 import TutorialOverlay, { useTutorial } from '../components/TutorialOverlay';
+import { notificationService } from '../services/notificationService';
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -38,6 +39,31 @@ export default function HomeScreen() {
     };
 
     loadPredictions();
+  }, [user]);
+
+  // Schedule race reminders for upcoming races
+  useEffect(() => {
+    const scheduleRaceReminders = async () => {
+      if (!user) return;
+
+      console.log('📅 [HOME] Scheduling race reminders for upcoming races');
+
+      for (const race of mockRaces) {
+        const raceDate = new Date(race.date);
+        const now = new Date();
+
+        // Only schedule reminders for future races
+        if (raceDate > now) {
+          await notificationService.scheduleRaceReminder(
+            race.id,
+            race.name,
+            raceDate
+          );
+        }
+      }
+    };
+
+    scheduleRaceReminders();
   }, [user]);
 
   const toggleWeather = (raceId: string) => {

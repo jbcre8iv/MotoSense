@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { supabase } from '../services/supabase';
 import { Session, User } from '@supabase/supabase-js';
+import { notificationService } from '../services/notificationService';
 
 interface Profile {
   id: string;
@@ -60,9 +61,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       console.log('👤 [AUTH] Profile loaded:', data.username);
       setProfile(data);
+
+      // Initialize push notifications for this user
+      initializeNotifications(userId);
     } catch (error) {
       console.error('❌ [AUTH] Error loading profile:', error);
       setProfile(null);
+    }
+  };
+
+  // Initialize push notifications
+  const initializeNotifications = async (userId: string) => {
+    try {
+      console.log('🔔 [AUTH] Initializing notifications for user');
+      await notificationService.registerForPushNotifications();
+    } catch (error) {
+      console.error('❌ [AUTH] Error initializing notifications:', error);
     }
   };
 
