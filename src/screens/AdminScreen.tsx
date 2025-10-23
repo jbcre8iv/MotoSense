@@ -102,9 +102,13 @@ export default function AdminScreen({ navigation }: AdminScreenProps) {
           },
         },
       ]);
-    } catch (error) {
+    } catch (error: any) {
       console.error('[ADMIN] Error creating race:', error);
-      Alert.alert('Error', 'Failed to create race. Check console for details.');
+      const errorMessage = error?.message || JSON.stringify(error);
+      Alert.alert(
+        'Error Creating Race',
+        `Database error: ${errorMessage}\n\nPlease check the console for full details.`
+      );
     } finally {
       setLoading(false);
     }
