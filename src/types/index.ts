@@ -32,6 +32,21 @@ export interface Track {
 
 export type RaceType = 'practice' | 'qualifying' | 'heat' | 'main';
 export type Series = 'supercross' | 'motocross' | 'arenacross';
+export type SeasonStatus = 'upcoming' | 'active' | 'demo' | 'completed';
+
+// NEW: Season interface for multi-season support
+export interface Season {
+  id: string;
+  year: number;
+  name: string;
+  description?: string;
+  status: SeasonStatus;
+  is_simulation: boolean; // true = demo/practice, false = live
+  start_date?: string;
+  end_date?: string;
+  created_at: string;
+  updated_at: string;
+}
 
 export interface Race {
   id: string;
@@ -42,6 +57,17 @@ export interface Race {
   round: number;
   type: RaceType;
   status: 'upcoming' | 'live' | 'completed';
+  // NEW: Season fields
+  season_id?: string;
+  is_simulation?: boolean; // true = demo mode (2025 replay), false = live
+  actual_results?: {
+    [className: string]: Array<{
+      riderId: string;
+      position: number;
+      points?: number;
+    }>;
+  };
+  results_revealed_at?: string;
 }
 
 export interface RaceResult {
@@ -66,6 +92,9 @@ export interface Prediction {
   timestamp: string;
   confidenceScore?: number;
   confidenceLevel?: ConfidenceLevel; // 1-5 stars
+  // NEW: Season fields
+  season_id?: string;
+  is_simulation?: boolean; // true = demo mode prediction
 }
 
 export interface ConfidenceMultiplier {
