@@ -1,79 +1,154 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { mockRaces, mockTracks, mockRiders } from '../data';
+import { mockTracks } from '../data';
+import { Race } from '../types';
+import { racesService } from '../services/racesService';
+import DemoModeBanner from '../components/DemoModeBanner';
 
 export default function RacesScreen() {
+  const [races, setRaces] = useState<Race[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [hasDemoRaces, setHasDemoRaces] = useState(false);
+
+  useEffect(() => {
+    loadRaces();
+  }, []);
+
+  const loadRaces = async () => {
+    try {
+      const fetchedRaces = await racesService.getRaces();
+      setRaces(fetchedRaces);
+      setHasDemoRaces(fetchedRaces.some(race => race.is_simulation));
+    } catch (error) {
+      console.error('[RACES SCREEN] Error loading races:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadRaces();
+    setRefreshing(false);
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#00d9ff" />
+          <Text style={styles.loadingText}>Loading races...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Race Schedule</Text>
-        <Text style={styles.subtitle}>2025 Supercross Season</Text>
-      </View>
+      <ScrollView
+        style={styles.container}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#00d9ff"
+            colors={['#00d9ff']}
+            progressBackgroundColor="#1a1f3a"
+          />
+        }
+      >
+        <View style={styles.header}>
+          <Text style={styles.title}>Race Schedule</Text>
+          <Text style={styles.subtitle}>2025 Supercross Season</Text>
+        </View>
 
-      <View style={styles.section}>
-        {mockRaces.map((race) => {
-          const track = mockTracks.find(t => t.id === race.trackId);
-          const raceDate = new Date(race.date);
-          const isUpcoming = race.status === 'upcoming';
+        <View style={styles.section}>
+          {hasDemoRaces && <DemoModeBanner />}
 
-          return (
-            <View key={race.id} style={styles.raceCard}>
-              <View style={styles.raceHeader}>
-                <View>
-                  <Text style={styles.raceName}>{race.name}</Text>
-                  <Text style={styles.raceLocation}>
-                    {track?.name}
-                  </Text>
-                  <Text style={styles.raceCity}>
-                    {track?.city}, {track?.state}
-                  </Text>
-                </View>
-                <View style={styles.roundBadge}>
-                  <Text style={styles.roundText}>R{race.round}</Text>
-                </View>
-              </View>
-
-              <View style={styles.raceDetails}>
-                <Text style={styles.raceDate}>
-                  {raceDate.toLocaleDateString('en-US', {
-                    weekday: 'short',
-                    month: 'short',
-                    day: 'numeric'
-                  })}
-                </Text>
-                <View style={[
-                  styles.statusBadge,
-                  isUpcoming ? styles.upcomingBadge : styles.completedBadge
-                ]}>
-                  <Text style={styles.statusText}>{race.status.toUpperCase()}</Text>
-                </View>
-              </View>
-
-              <View style={styles.trackInfo}>
-                <View style={styles.infoItem}>
-                  <Text style={styles.infoLabel}>Type:</Text>
-                  <Text style={styles.infoValue}>{track?.type}</Text>
-                </View>
-                <View style={styles.infoItem}>
-                  <Text style={styles.infoLabel}>Soil:</Text>
-                  <Text style={styles.infoValue}>{track?.soilType}</Text>
-                </View>
-                <View style={styles.infoItem}>
-                  <Text style={styles.infoLabel}>Length:</Text>
-                  <Text style={styles.infoValue}>{track?.trackLength} mi</Text>
-                </View>
-              </View>
+          {races.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateText}>No races found</Text>
+              <Text style={styles.emptyStateSubtext}>
+                Races will appear here once they're added to the schedule
+              </Text>
             </View>
-          );
-        })}
-      </View>
+          ) : (
+            races.map((race) => {
+              const track = mockTracks.find(t => t.id === race.trackId);
+              const raceDate = new Date(race.date);
+              const isUpcoming = race.status === 'upcoming';
 
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>More races coming soon...</Text>
-      </View>
-    </ScrollView>
+              return (
+                <View key={race.id} style={styles.raceCard}>
+                  <View style={styles.raceHeader}>
+                    <View style={{ flex: 1 }}>
+                      <View style={styles.raceNameRow}>
+                        <Text style={styles.raceName}>{race.name}</Text>
+                        {race.is_simulation && <DemoModeBanner compact />}
+                      </View>
+                      <Text style={styles.raceLocation}>
+                        {track?.name || race.trackId}
+                      </Text>
+                      {track && (
+                        <Text style={styles.raceCity}>
+                          {track.city}, {track.state}
+                        </Text>
+                      )}
+                    </View>
+                    <View style={styles.roundBadge}>
+                      <Text style={styles.roundText}>R{race.round}</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.raceDetails}>
+                    <Text style={styles.raceDate}>
+                      {raceDate.toLocaleDateString('en-US', {
+                        weekday: 'short',
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric'
+                      })}
+                    </Text>
+                    <View style={[
+                      styles.statusBadge,
+                      isUpcoming ? styles.upcomingBadge : styles.completedBadge
+                    ]}>
+                      <Text style={styles.statusText}>{race.status.toUpperCase()}</Text>
+                    </View>
+                  </View>
+
+                  {track && (
+                    <View style={styles.trackInfo}>
+                      <View style={styles.infoItem}>
+                        <Text style={styles.infoLabel}>Type:</Text>
+                        <Text style={styles.infoValue}>{track.type}</Text>
+                      </View>
+                      <View style={styles.infoItem}>
+                        <Text style={styles.infoLabel}>Soil:</Text>
+                        <Text style={styles.infoValue}>{track.soilType}</Text>
+                      </View>
+                      <View style={styles.infoItem}>
+                        <Text style={styles.infoLabel}>Length:</Text>
+                        <Text style={styles.infoValue}>{track.trackLength} mi</Text>
+                      </View>
+                    </View>
+                  )}
+                </View>
+              );
+            })
+          )}
+        </View>
+
+        {races.length > 0 && (
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>
+              {hasDemoRaces ? 'More races will be added during beta testing' : 'More races coming soon...'}
+            </Text>
+          </View>
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -86,6 +161,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0a0e27',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#0a0e27',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#8892b0',
   },
   header: {
     padding: 20,
@@ -106,6 +192,21 @@ const styles = StyleSheet.create({
   section: {
     padding: 16,
   },
+  emptyState: {
+    padding: 40,
+    alignItems: 'center',
+  },
+  emptyStateText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#8892b0',
+    marginBottom: 8,
+  },
+  emptyStateSubtext: {
+    fontSize: 14,
+    color: '#8892b0',
+    textAlign: 'center',
+  },
   raceCard: {
     backgroundColor: '#1a1f3a',
     borderRadius: 12,
@@ -119,11 +220,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 12,
   },
+  raceNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
   raceName: {
     fontSize: 20,
     fontWeight: 'bold',
     color: '#ffffff',
-    marginBottom: 4,
   },
   raceLocation: {
     fontSize: 14,

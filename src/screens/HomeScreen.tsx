@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, LayoutAnimation, Platform, UIManager } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, LayoutAnimation, Platform, UIManager, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
-import { mockRaces, mockTracks } from '../data';
+import { mockTracks } from '../data';
+import { Race } from '../types';
 import WeatherCard from '../components/WeatherCard';
 import InlinePredictionCard from '../components/InlinePredictionCard';
 import { getPredictionForRace, SupabasePrediction } from '../services/predictionsService';
 import { useAuth } from '../contexts/AuthContext';
 import TutorialOverlay, { useTutorial } from '../components/TutorialOverlay';
 import { notificationService } from '../services/notificationService';
+import { racesService } from '../services/racesService';
+import DemoModeBanner from '../components/DemoModeBanner';
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -17,21 +20,41 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 
 export default function HomeScreen() {
   const { user } = useAuth();
+  const [races, setRaces] = useState<Race[]>([]);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [expandedWeatherRaceId, setExpandedWeatherRaceId] = useState<string | null>(null);
   const [expandedPredictionRaceId, setExpandedPredictionRaceId] = useState<string | null>(null);
   const [racePredictions, setRacePredictions] = useState<Record<string, SupabasePrediction | null>>({});
+  const [hasDemoRaces, setHasDemoRaces] = useState(false);
 
   // Tutorial state
   const { tutorialCompleted, currentStep, nextStep, skipTutorial } = useTutorial();
 
+  // Load races from database
+  useEffect(() => {
+    loadRaces();
+  }, []);
+
+  const loadRaces = async () => {
+    try {
+      const fetchedRaces = await racesService.getRaces();
+      setRaces(fetchedRaces);
+      setHasDemoRaces(fetchedRaces.some(race => race.is_simulation));
+    } catch (error) {
+      console.error('[HOME SCREEN] Error loading races:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Load predictions for all races
   useEffect(() => {
     const loadPredictions = async () => {
-      if (!user) return;
+      if (!user || races.length === 0) return;
 
       const predictions: Record<string, SupabasePrediction | null> = {};
-      for (const race of mockRaces) {
+      for (const race of races) {
         const prediction = await getPredictionForRace(user.id, race.id);
         predictions[race.id] = prediction;
       }
@@ -39,16 +62,16 @@ export default function HomeScreen() {
     };
 
     loadPredictions();
-  }, [user]);
+  }, [user, races]);
 
   // Schedule race reminders for upcoming races
   useEffect(() => {
     const scheduleRaceReminders = async () => {
-      if (!user) return;
+      if (!user || races.length === 0) return;
 
       console.log('📅 [HOME] Scheduling race reminders for upcoming races');
 
-      for (const race of mockRaces) {
+      for (const race of races) {
         const raceDate = new Date(race.date);
         const now = new Date();
 
@@ -64,7 +87,7 @@ export default function HomeScreen() {
     };
 
     scheduleRaceReminders();
-  }, [user]);
+  }, [user, races]);
 
   const toggleWeather = (raceId: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -107,15 +130,23 @@ export default function HomeScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     setRefreshing(true);
-
-    // Simulate refresh delay (weather data will auto-refresh via WeatherCard re-render)
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
+    await loadRaces();
     setRefreshing(false);
 
     // Success haptic after refresh
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#00d9ff" />
+          <Text style={styles.loadingText}>Loading races...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -137,8 +168,18 @@ export default function HomeScreen() {
       </View>
 
       <View style={styles.section}>
+        {hasDemoRaces && <DemoModeBanner />}
+
         <Text style={styles.sectionTitle}>Upcoming Races</Text>
-        {mockRaces.filter(race => race.status === 'upcoming').map((race) => {
+        {races.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateText}>No races scheduled yet</Text>
+            <Text style={styles.emptyStateSubtext}>
+              Check back soon for upcoming races!
+            </Text>
+          </View>
+        ) : (
+          races.filter(race => race.status === 'upcoming').map((race) => {
           const track = mockTracks.find(t => t.id === race.trackId);
           const raceDate = new Date(race.date);
           const isWeatherExpanded = expandedWeatherRaceId === race.id;
@@ -155,13 +196,18 @@ export default function HomeScreen() {
               ]}>
                 <View style={styles.raceHeader}>
                   <View style={styles.raceHeaderLeft}>
-                    <Text style={styles.raceName}>{race.name}</Text>
+                    <View style={styles.raceNameRow}>
+                      <Text style={styles.raceName}>{race.name}</Text>
+                      {race.is_simulation && <DemoModeBanner compact />}
+                    </View>
                     <Text style={styles.raceLocation}>
-                      {track?.name}
+                      {track?.name || race.trackId}
                     </Text>
-                    <Text style={styles.raceCity}>
-                      {track?.city}, {track?.state}
-                    </Text>
+                    {track && (
+                      <Text style={styles.raceCity}>
+                        {track.city}, {track.state}
+                      </Text>
+                    )}
                   </View>
                   <View style={styles.roundBadge}>
                     <Text style={styles.roundBadgeText}>R{race.round}</Text>
@@ -263,7 +309,8 @@ export default function HomeScreen() {
               </View>
             </View>
           );
-        })}
+        })
+        )}
       </View>
     </ScrollView>
 
@@ -287,6 +334,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0a0e27',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#0a0e27',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#8892b0',
   },
   header: {
     padding: 20,
@@ -314,6 +372,21 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     marginBottom: 16,
   },
+  emptyState: {
+    padding: 40,
+    alignItems: 'center',
+  },
+  emptyStateText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#8892b0',
+    marginBottom: 8,
+  },
+  emptyStateSubtext: {
+    fontSize: 14,
+    color: '#8892b0',
+    textAlign: 'center',
+  },
   raceCardContainer: {
     marginBottom: 16,
   },
@@ -336,11 +409,16 @@ const styles = StyleSheet.create({
   raceHeaderLeft: {
     flex: 1,
   },
+  raceNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
   raceName: {
     fontSize: 20,
     fontWeight: 'bold',
     color: '#ffffff',
-    marginBottom: 4,
   },
   raceLocation: {
     fontSize: 14,
