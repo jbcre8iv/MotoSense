@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { mockRiders } from '../data';
-import { Prediction } from '../types';
+import { Prediction, ConfidenceLevel } from '../types';
 import { updateUserStats } from '../services/storageService';
 import { savePredictionToSupabase, SupabasePrediction } from '../services/predictionsService';
+import { ConfidenceSelector } from './ConfidenceSelector';
+import { getConfidenceEmoji, formatConfidenceLevel } from '../utils/confidenceUtils';
 
 interface InlinePredictionCardProps {
   raceId: string;
@@ -28,6 +30,10 @@ export default function InlinePredictionCard({
       return existingPrediction.predictions;
     }
     return {};
+  });
+
+  const [confidenceLevel, setConfidenceLevel] = useState<ConfidenceLevel>(() => {
+    return (existingPrediction?.confidence_level as ConfidenceLevel) || 3; // Default to neutral
   });
 
   // Check if predictions are locked (within 1 hour of race start)
@@ -60,8 +66,8 @@ export default function InlinePredictionCard({
     }
 
     try {
-      // Save to Supabase
-      await savePredictionToSupabase(userId, raceId, predictions);
+      // Save to Supabase with confidence level
+      await savePredictionToSupabase(userId, raceId, predictions, confidenceLevel);
 
       // Update local stats
       const prediction: Prediction = {
@@ -73,6 +79,7 @@ export default function InlinePredictionCard({
           predictedPosition: parseInt(position)
         })),
         timestamp: new Date().toISOString(),
+        confidenceLevel,
       };
       await updateUserStats(prediction);
 
@@ -128,7 +135,8 @@ export default function InlinePredictionCard({
           </Text>
         </View>
       ) : (
-        [1, 2, 3, 4, 5].map((position) => (
+        <>
+        {[1, 2, 3, 4, 5].map((position) => (
           <View key={position} style={styles.positionRow}>
             <View style={styles.positionLabel}>
               <Text style={styles.positionNumber}>P{position}</Text>
@@ -175,7 +183,30 @@ export default function InlinePredictionCard({
             </View>
           )}
         </View>
-        ))
+        ))}
+
+        {/* Confidence Level Section */}
+        {isViewMode ? (
+          <View style={styles.confidenceDisplayCard}>
+            <Text style={styles.confidenceDisplayLabel}>Confidence Level</Text>
+            <View style={styles.confidenceDisplayRow}>
+              <Text style={styles.confidenceEmoji}>
+                {getConfidenceEmoji(confidenceLevel)}
+              </Text>
+              <Text style={styles.confidenceDisplayText}>
+                {formatConfidenceLevel(confidenceLevel)}
+              </Text>
+            </View>
+          </View>
+        ) : (
+          <ConfidenceSelector
+            selectedLevel={confidenceLevel}
+            onSelectLevel={setConfidenceLevel}
+            basePoints={100}
+            style={styles.confidenceSelector}
+          />
+        )}
+        </>
       )}
 
       {!isViewMode && (
@@ -297,5 +328,37 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: '#0a0e27',
+  },
+  confidenceSelector: {
+    marginTop: 20,
+    marginBottom: 8,
+  },
+  confidenceDisplayCard: {
+    backgroundColor: '#0a0e27',
+    borderRadius: 10,
+    padding: 16,
+    marginTop: 20,
+    borderWidth: 1,
+    borderColor: '#2a3150',
+  },
+  confidenceDisplayLabel: {
+    fontSize: 14,
+    color: '#8892b0',
+    marginBottom: 10,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+  },
+  confidenceDisplayRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  confidenceEmoji: {
+    fontSize: 24,
+  },
+  confidenceDisplayText: {
+    fontSize: 16,
+    color: '#00d9ff',
+    fontWeight: '700',
   },
 });

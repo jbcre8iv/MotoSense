@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { Prediction } from '../types';
+import { Prediction, ConfidenceLevel } from '../types';
 
 export interface SupabasePrediction {
   id: string;
@@ -7,6 +7,7 @@ export interface SupabasePrediction {
   race_id: string;
   predictions: Record<number, string>; // position -> riderId
   submitted_at: string;
+  confidence_level?: ConfidenceLevel; // 1-5 confidence level
 }
 
 /**
@@ -15,10 +16,11 @@ export interface SupabasePrediction {
 export const savePredictionToSupabase = async (
   userId: string,
   raceId: string,
-  predictions: Record<number, string>
+  predictions: Record<number, string>,
+  confidenceLevel?: ConfidenceLevel
 ): Promise<boolean> => {
   try {
-    console.log('💾 [SAVE PREDICTION] Saving to Supabase:', { userId, raceId, predictions });
+    console.log('💾 [SAVE PREDICTION] Saving to Supabase:', { userId, raceId, predictions, confidenceLevel });
 
     const { error } = await supabase
       .from('predictions')
@@ -26,6 +28,7 @@ export const savePredictionToSupabase = async (
         user_id: userId,
         race_id: raceId,
         predictions,
+        confidence_level: confidenceLevel || 3, // Default to level 3 (neutral)
       }, {
         onConflict: 'user_id,race_id'
       });
