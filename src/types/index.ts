@@ -53,6 +53,8 @@ export interface RaceResult {
   dnf?: boolean; // Did Not Finish
 }
 
+export type ConfidenceLevel = 1 | 2 | 3 | 4 | 5;
+
 export interface Prediction {
   id: string;
   userId: string;
@@ -63,6 +65,14 @@ export interface Prediction {
   }[];
   timestamp: string;
   confidenceScore?: number;
+  confidenceLevel?: ConfidenceLevel; // 1-5 stars
+}
+
+export interface ConfidenceMultiplier {
+  level: ConfidenceLevel;
+  multiplier: number;
+  label: string;
+  description: string;
 }
 
 export interface UserProfile {
