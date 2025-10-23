@@ -2,23 +2,23 @@
 
 **Project**: MotoSense - Racing Prediction App
 **Date**: January 2025
-**Status**: 57% Complete (4 of 7 features)
-**Time Invested**: ~3 hours
+**Status**: 71% Complete (5 of 7 features)
+**Time Invested**: ~5 hours
 
 ---
 
 ## Executive Summary
 
-Phase 2 is focusing on enhancing the race day experience and social engagement features. **4 major features have been completed** with **3 remaining**. All completed code is compilable and ready for testing.
+Phase 2 is focusing on enhancing the race day experience and social engagement features. **5 major features have been completed** with **2 remaining**. All completed code is compilable and ready for testing.
 
 ### What's Been Built:
 1. ✅ **Live Race Center** - Complete race dashboard with countdown timers
 2. ✅ **Real-Time Scoring** - Live scoring updates during races with Supabase Realtime
 3. ✅ **Prediction Locking** - Automatic locking 1 hour before race start
 4. ✅ **Group Chat** - Full real-time messaging system with threading and editing
+5. ✅ **Rivalries System** - Head-to-head challenge tracking with stats and leaderboards
 
 ### What's Remaining:
-5. ⏳ **Rivalries System** - Head-to-head challenge tracking
 6. ⏳ **Activity Feed** - Social updates and notifications
 7. ⏳ **Expanded Predictions** - Holeshot, qualifying, fastest lap predictions
 
