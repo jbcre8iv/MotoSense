@@ -120,10 +120,10 @@ export async function getUserRivalries(userId: string): Promise<RivalrySummary[]
   try {
     const { data, error } = await supabase
       .from('rivalry_summaries')
-      .select(\`
+      .select(`
         *,
         rival:profiles!rivalry_summaries_rival_id_fkey(username, avatar_url)
-      \`)
+      `)
       .eq('user_id', userId)
       .order('total_races', { ascending: false });
 
@@ -145,10 +145,10 @@ export async function getActiveRivalries(userId: string): Promise<RivalrySummary
   try {
     const { data, error } = await supabase
       .from('rivalry_summaries')
-      .select(\`
+      .select(`
         *,
         rival:profiles!rivalry_summaries_rival_id_fkey(username, avatar_url)
-      \`)
+      `)
       .eq('user_id', userId)
       .eq('status', 'active')
       .order('total_races', { ascending: false });
@@ -191,7 +191,7 @@ export async function getHeadToHeadRecord(userId: string, rivalId: string): Prom
     const { data: rivalry, error: rivalryError } = await supabase
       .from('rivalries')
       .select('*')
-      .or(\`and(user_id.eq.\${userId},rival_id.eq.\${rivalId}),and(user_id.eq.\${rivalId},rival_id.eq.\${userId})\`)
+      .or(`and(user_id.eq.${userId},rival_id.eq.${rivalId}),and(user_id.eq.${rivalId},rival_id.eq.${userId})`)
       .single();
 
     if (rivalryError) throw rivalryError;
@@ -208,10 +208,10 @@ export async function getHeadToHeadRecord(userId: string, rivalId: string): Prom
     // Get recent races
     const { data: recentRaces, error: racesError } = await supabase
       .from('rivalry_stats')
-      .select(\`
+      .select(`
         *,
         race:races(name, date)
-      \`)
+      `)
       .eq('rivalry_id', rivalry.id)
       .order('race:races(date)', { ascending: false })
       .limit(10);
@@ -248,12 +248,12 @@ export async function getRivalryStatsForRace(raceId: string, userId: string): Pr
   try {
     const { data, error } = await supabase
       .from('rivalry_stats')
-      .select(\`
+      .select(`
         *,
         rivalry:rivalries(user_id, rival_id, status)
-      \`)
+      `)
       .eq('race_id', raceId)
-      .or(\`rivalry.user_id.eq.\${userId},rivalry.rival_id.eq.\${userId}\`);
+      .or(`rivalry.user_id.eq.${userId},rivalry.rival_id.eq.${userId}`);
 
     if (error) throw error;
 
@@ -271,7 +271,7 @@ export async function searchPotentialRivals(userId: string, searchTerm: string):
       .from('profiles')
       .select('id, username, avatar_url, total_points')
       .neq('id', userId)
-      .ilike('username', \`%\${searchTerm}%\`)
+      .ilike('username', `%${searchTerm}%`)
       .limit(20);
 
     if (error) throw error;
@@ -322,11 +322,11 @@ export async function getRivalryLeaderboard(limit: number = 10): Promise<Rivalry
   try {
     const { data, error } = await supabase
       .from('rivalry_summaries')
-      .select(\`
+      .select(`
         *,
         user:profiles!rivalry_summaries_user_id_fkey(username, avatar_url),
         rival:profiles!rivalry_summaries_rival_id_fkey(username, avatar_url)
-      \`)
+      `)
       .eq('status', 'active')
       .order('total_races', { ascending: false })
       .limit(limit);
@@ -350,7 +350,7 @@ export async function checkRivalryExists(userId: string, rivalId: string): Promi
     const { data, error } = await supabase
       .from('rivalries')
       .select('id')
-      .or(\`and(user_id.eq.\${userId},rival_id.eq.\${rivalId}),and(user_id.eq.\${rivalId},rival_id.eq.\${userId})\`)
+      .or(`and(user_id.eq.${userId},rival_id.eq.${rivalId}),and(user_id.eq.${rivalId},rival_id.eq.${userId})`)
       .single();
 
     if (error && error.code !== 'PGRST116') throw error; // PGRST116 is "not found" error

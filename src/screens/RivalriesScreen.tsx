@@ -52,7 +52,7 @@ export default function RivalriesScreen() {
   };
 
   const getRecordText = (summary: RivalrySummary) => {
-    return \`\${summary.wins}W - \${summary.losses}L - \${summary.ties}T\`;
+    return `${summary.wins}W - ${summary.losses}L - ${summary.ties}T`;
   };
 
   const getWinPercentage = (summary: RivalrySummary) => {

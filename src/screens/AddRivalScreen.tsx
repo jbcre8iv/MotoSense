@@ -75,7 +75,7 @@ export default function AddRivalScreen() {
 
     Alert.alert(
       'Add Rival',
-      \`Start a rivalry with \${rivalName}?\`,
+      `Start a rivalry with ${rivalName}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
