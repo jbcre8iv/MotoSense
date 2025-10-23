@@ -22,6 +22,7 @@ import PredictionHistoryScreen from '../screens/PredictionHistoryScreen';
 import LeaderboardsScreen from '../screens/LeaderboardsScreen';
 import RiderProfileScreen from '../screens/RiderProfileScreen';
 import TrackProfileScreen from '../screens/TrackProfileScreen';
+import FriendsScreen from '../screens/FriendsScreen';
 import GroupsScreen from '../screens/GroupsScreen';
 import GroupDetailsScreen from '../screens/GroupDetailsScreen';
 import GroupLeaderboardScreen from '../screens/GroupLeaderboardScreen';
@@ -79,6 +80,7 @@ function ProfileStack() {
       <Stack.Screen name="Analytics" component={AnalyticsDashboardScreen} />
       <Stack.Screen name="PredictionHistory" component={PredictionHistoryScreen} />
       <Stack.Screen name="Leaderboards" component={LeaderboardsScreen} />
+      <Stack.Screen name="Friends" component={FriendsScreen} />
       <Stack.Screen name="RiderProfile" component={RiderProfileScreen} />
       <Stack.Screen name="TrackProfile" component={TrackProfileScreen} />
       <Stack.Screen name="Rivalries" component={RivalriesScreen} />

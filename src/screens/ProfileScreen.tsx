@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { UserProfile, Achievement } from '../types';
 import { getUserProfile, initializeUserProfile, clearAllData } from '../services/storageService';
@@ -15,6 +15,7 @@ import DataDisclaimerModal from '../components/DataDisclaimerModal';
 
 export default function ProfileScreen() {
   const { signOut, user } = useAuth();
+  const navigation = useNavigation();
   const [userData, setUserData] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [showDisclaimer, setShowDisclaimer] = useState(false);
@@ -316,6 +317,20 @@ export default function ProfileScreen() {
             Max Achievement Progress: {Math.max(...userData.achievements.filter(a => a.type === 'prediction_count').map(a => a.currentProgress), 0)}
           </Text>
         </View>
+      </View>
+
+      {/* Social & Competition */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Social</Text>
+
+        <TouchableOpacity
+          style={styles.infoButton}
+          onPress={() => navigation.navigate('Friends' as never)}
+        >
+          <Ionicons name="people-outline" size={20} color="#00d9ff" />
+          <Text style={styles.infoButtonText}>Friends & Leaderboard</Text>
+          <Ionicons name="chevron-forward" size={20} color="#8892b0" style={{ marginLeft: 'auto' }} />
+        </TouchableOpacity>
       </View>
 
       {/* App Info & Actions */}
