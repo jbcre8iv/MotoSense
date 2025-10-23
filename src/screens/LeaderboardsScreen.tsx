@@ -437,8 +437,12 @@ export default function LeaderboardsScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Leaderboards</Text>
-          <Text style={styles.headerSubtitle}>Compete with the best</Text>
+          <Ionicons name="trophy" size={32} color="#00d9ff" />
+          <View style={styles.headerText}>
+            <Text style={styles.headerTitle}>Leaderboards</Text>
+            <Text style={styles.headerSubtitle}>Compete with the best</Text>
+          </View>
+          <Ionicons name="notifications-outline" size={24} color="#00d9ff" />
         </View>
 
         {/* Type Selector */}
@@ -500,19 +504,26 @@ const styles = StyleSheet.create({
     color: '#8892b0',
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 24,
     paddingTop: 60,
     paddingBottom: 24,
+    backgroundColor: '#0a0e27',
+  },
+  headerText: {
+    flex: 1,
+    marginLeft: 12,
   },
   headerTitle: {
-    fontSize: 32,
+    fontSize: 24,
     fontWeight: 'bold',
-    color: '#ccd6f6',
-    marginBottom: 4,
+    color: '#ffffff',
   },
   headerSubtitle: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#8892b0',
+    marginTop: 2,
   },
   typeSelector: {
     flexDirection: 'row',

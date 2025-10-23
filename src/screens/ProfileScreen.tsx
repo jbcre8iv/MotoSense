@@ -132,7 +132,12 @@ export default function ProfileScreen() {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Profile</Text>
+        <Ionicons name="person" size={32} color="#00d9ff" />
+        <View style={styles.headerText}>
+          <Text style={styles.title}>Profile</Text>
+          <Text style={styles.subtitle}>Your stats & progress</Text>
+        </View>
+        <Ionicons name="notifications-outline" size={24} color="#00d9ff" />
       </View>
 
       <View style={styles.profileCard}>
@@ -387,15 +392,21 @@ const styles = StyleSheet.create({
     backgroundColor: '#0a0e27',
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: 20,
     backgroundColor: '#1a1f3a',
     borderBottomWidth: 2,
     borderBottomColor: '#00d9ff',
   },
+  headerText: {
+    flex: 1,
+    marginLeft: 12,
+  },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: 'bold',
-    color: '#00d9ff',
+    color: '#ffffff',
   },
   profileCard: {
     backgroundColor: '#1a1f3a',
