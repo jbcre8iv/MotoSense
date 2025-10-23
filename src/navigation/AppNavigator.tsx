@@ -35,8 +35,9 @@ import OnboardingScreen from '../screens/OnboardingScreen';
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 
-// Race Center stack (nested navigation for Race Center section)
-function RaceCenterStack() {
+
+// Races stack (consolidated race lifecycle)
+function RacesStack() {
   return (
     <Stack.Navigator
       screenOptions={{
@@ -44,14 +45,14 @@ function RaceCenterStack() {
         cardStyle: { backgroundColor: '#0a0e27' },
       }}
     >
-      <Stack.Screen name="RaceCenterList" component={RaceCenterScreen} />
+      <Stack.Screen name="RacesMain" component={RaceCenterScreen} />
       <Stack.Screen name="LiveRace" component={LiveRaceScreen} />
     </Stack.Navigator>
   );
 }
 
-// Groups stack (nested navigation for Groups section)
-function GroupsStack() {
+// Compete stack (all social/competitive features)
+function CompeteStack() {
   return (
     <Stack.Navigator
       screenOptions={{
@@ -59,15 +60,20 @@ function GroupsStack() {
         cardStyle: { backgroundColor: '#0a0e27' },
       }}
     >
+      <Stack.Screen name="LeaderboardsMain" component={LeaderboardsScreen} />
+      <Stack.Screen name="Rivalries" component={RivalriesScreen} />
+      <Stack.Screen name="RivalryDetail" component={RivalryDetailScreen} />
+      <Stack.Screen name="AddRival" component={AddRivalScreen} />
       <Stack.Screen name="GroupsList" component={GroupsScreen} />
       <Stack.Screen name="GroupDetails" component={GroupDetailsScreen} />
       <Stack.Screen name="GroupLeaderboard" component={GroupLeaderboardScreen} />
       <Stack.Screen name="GroupChat" component={GroupChatScreen} />
+      <Stack.Screen name="Friends" component={FriendsScreen} />
     </Stack.Navigator>
   );
 }
 
-// Profile stack (nested navigation for Profile section)
+// Profile stack (personal stats & settings)
 function ProfileStack() {
   return (
     <Stack.Navigator
@@ -79,18 +85,13 @@ function ProfileStack() {
       <Stack.Screen name="ProfileMain" component={ProfileScreen} />
       <Stack.Screen name="Analytics" component={AnalyticsDashboardScreen} />
       <Stack.Screen name="PredictionHistory" component={PredictionHistoryScreen} />
-      <Stack.Screen name="Leaderboards" component={LeaderboardsScreen} />
-      <Stack.Screen name="Friends" component={FriendsScreen} />
       <Stack.Screen name="RiderProfile" component={RiderProfileScreen} />
       <Stack.Screen name="TrackProfile" component={TrackProfileScreen} />
-      <Stack.Screen name="Rivalries" component={RivalriesScreen} />
-      <Stack.Screen name="RivalryDetail" component={RivalryDetailScreen} />
-      <Stack.Screen name="AddRival" component={AddRivalScreen} />
     </Stack.Navigator>
   );
 }
 
-// Main app tabs (for authenticated users)
+// Main app tabs (for authenticated users) - STREAMLINED 3-TAB STRUCTURE
 function MainTabs() {
   return (
     <Tab.Navigator
@@ -118,38 +119,20 @@ function MainTabs() {
       }}
     >
       <Tab.Screen
-        name="Upcoming"
-        component={HomeScreen}
+        name="Races"
+        component={RacesStack}
         options={{
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="flag-outline" size={size} color={color} />
+            <Ionicons name="flag" size={size} color={color} />
           ),
         }}
       />
       <Tab.Screen
-        name="Race Center"
-        component={RaceCenterStack}
+        name="Compete"
+        component={CompeteStack}
         options={{
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="radio" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Activity"
-        component={ActivityFeedScreen}
-        options={{
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="notifications" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Groups"
-        component={GroupsStack}
-        options={{
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="people" size={size} color={color} />
+            <Ionicons name="trophy" size={size} color={color} />
           ),
         }}
       />

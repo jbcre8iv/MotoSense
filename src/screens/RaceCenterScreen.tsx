@@ -4,9 +4,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { Ionicons } from '@expo/vector-icons';
 
+import HomeScreen from './HomeScreen';
 import LiveRacesTab from './RaceCenter/LiveRacesTab';
-import ResultsTab from './RaceCenter/ResultsTab';
-import RiderStatsTab from './RaceCenter/RiderStatsTab';
+import ResultsScreen from './ResultsScreen';
 import SeasonStatsTab from './RaceCenter/SeasonStatsTab';
 
 const Tab = createMaterialTopTabNavigator();
@@ -18,13 +18,13 @@ export default function RaceCenterScreen({ navigation }: any) {
       <View style={styles.header}>
         <Ionicons name="flag" size={32} color="#00d9ff" />
         <View style={styles.headerText}>
-          <Text style={styles.title}>Race Center</Text>
-          <Text style={styles.subtitle}>Live updates, results & stats</Text>
+          <Text style={styles.title}>Races</Text>
+          <Text style={styles.subtitle}>Complete race lifecycle & stats</Text>
         </View>
         <Ionicons name="notifications-outline" size={24} color="#00d9ff" />
       </View>
 
-      {/* Tabs */}
+      {/* Tabs - Complete Race Lifecycle */}
       <Tab.Navigator
         screenOptions={{
           tabBarStyle: {
@@ -52,6 +52,16 @@ export default function RaceCenterScreen({ navigation }: any) {
         }}
       >
         <Tab.Screen
+          name="Upcoming"
+          component={HomeScreen}
+          options={{
+            tabBarLabel: 'Upcoming',
+            tabBarIcon: ({ color }) => (
+              <Ionicons name="flag-outline" size={18} color={color} />
+            ),
+          }}
+        />
+        <Tab.Screen
           name="Live"
           options={{
             tabBarLabel: 'Live',
@@ -64,21 +74,11 @@ export default function RaceCenterScreen({ navigation }: any) {
         </Tab.Screen>
         <Tab.Screen
           name="Results"
-          component={ResultsTab}
+          component={ResultsScreen}
           options={{
             tabBarLabel: 'Results',
             tabBarIcon: ({ color }) => (
               <Ionicons name="trophy" size={18} color={color} />
-            ),
-          }}
-        />
-        <Tab.Screen
-          name="Riders"
-          component={RiderStatsTab}
-          options={{
-            tabBarLabel: 'Riders',
-            tabBarIcon: ({ color }) => (
-              <Ionicons name="people" size={18} color={color} />
             ),
           }}
         />
