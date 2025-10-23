@@ -1,12 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, LayoutAnimation, Platform, UIManager } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { mockRaces, mockTracks } from '../data';
 import InlinePredictionCard from '../components/InlinePredictionCard';
 import AdminResultsEntry from '../components/AdminResultsEntry';
+import { ScoreBreakdown } from '../components/ScoreBreakdown';
 import { getPredictionForRace, SupabasePrediction } from '../services/predictionsService';
 import { isUserAdmin, getRaceResults, getPredictionScore, RaceResult, PredictionScore } from '../services/resultsService';
+import { calculatePredictionScore, PredictionScore as DetailedPredictionScore } from '../services/scoringService';
 import { mockRiders } from '../data/mockRiders';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -255,27 +257,33 @@ export default function ResultsScreen() {
                         })}
                       </View>
 
-                      {userScore && (
-                        <View style={styles.scoreSection}>
-                          <Text style={styles.scoreSectionTitle}>Your Score</Text>
-                          <View style={styles.scoreDetails}>
-                            <View style={styles.scoreMainPoints}>
-                              <Text style={styles.scorePointsLabel}>Total Points</Text>
-                              <Text style={styles.scorePointsValue}>{userScore.points_earned}</Text>
-                            </View>
-                            <View style={styles.scoreBreakdown}>
-                              <View style={styles.scoreItem}>
-                                <Text style={styles.scoreItemLabel}>Exact Matches:</Text>
-                                <Text style={styles.scoreItemValue}>{userScore.exact_matches}</Text>
-                              </View>
-                              <View style={styles.scoreItem}>
-                                <Text style={styles.scoreItemLabel}>Rider Matches:</Text>
-                                <Text style={styles.scoreItemValue}>{userScore.rider_matches}</Text>
-                              </View>
-                            </View>
+                      {existingPrediction && results.length > 0 && (() => {
+                        // Calculate detailed score with confidence and streak
+                        const predictions = Object.entries(existingPrediction.predictions).map(([pos, riderId]) => ({
+                          riderId: riderId as string,
+                          predictedPosition: parseInt(pos)
+                        }));
+
+                        const actualResults = results.map(r => ({
+                          riderId: r.rider_id,
+                          position: r.position
+                        }));
+
+                        const detailedScore = calculatePredictionScore(
+                          race.id,
+                          user!.id,
+                          predictions,
+                          actualResults,
+                          existingPrediction.confidence_level,
+                          0 // TODO: Get user's actual streak from profile
+                        );
+
+                        return (
+                          <View style={styles.scoreSection}>
+                            <ScoreBreakdown score={detailedScore} showDetails={true} />
                           </View>
-                        </View>
-                      )}
+                        );
+                      })()}
                     </View>
                   )}
 
