@@ -1,336 +1,400 @@
-/**
- * Activity Feed Service
- *
- * Aggregates and displays recent activities from across the app:
- * - Predictions made
- * - Achievements unlocked
- * - Race results
- * - Group activity
- * - Rivalry updates
- */
-
 import { supabase } from './supabase';
 
-export interface Activity {
+// Types
+export interface ActivityFeed {
   id: string;
-  type:
-    | 'prediction'
-    | 'achievement'
-    | 'race_result'
-    | 'group_join'
-    | 'group_message'
-    | 'rivalry_win'
-    | 'rivalry_loss';
   user_id: string;
-  username: string;
-  avatar_url: string | null;
+  activity_type: ActivityType;
   title: string;
-  description: string;
-  timestamp: string;
-  metadata?: any;
-  icon: string;
-  color: string;
+  description: string | null;
+  metadata: Record<string, any>;
+  related_user_id: string | null;
+  related_race_id: string | null;
+  related_group_id: string | null;
+  points_earned: number;
+  is_read: boolean;
+  created_at: string;
+  // Joined data
+  related_user?: {
+    username: string;
+    avatar_url: string | null;
+  };
+  related_race?: {
+    name: string;
+    date: string;
+  };
+  related_group?: {
+    name: string;
+  };
 }
 
-/**
- * Get recent activity feed for a user (personalized feed)
- */
-export const getActivityFeed = async (userId: string, limit: number = 20): Promise<Activity[]> => {
-  const activities: Activity[] = [];
+export type ActivityType =
+  | 'prediction_made'
+  | 'race_completed'
+  | 'achievement_unlocked'
+  | 'group_joined'
+  | 'rivalry_created'
+  | 'challenge_won'
+  | 'rank_improved'
+  | 'perfect_prediction';
 
+export interface ActivityFeedOptions {
+  limit?: number;
+  offset?: number;
+  unreadOnly?: boolean;
+  activityTypes?: ActivityType[];
+}
+
+// Get user's activity feed
+export async function getActivityFeed(
+  userId: string,
+  options: ActivityFeedOptions = {}
+): Promise<ActivityFeed[]> {
   try {
-    // Get user's groups to filter group activities
-    const { data: userGroups } = await supabase
-      .from('group_members')
-      .select('group_id')
-      .eq('user_id', userId);
+    const {
+      limit = 50,
+      offset = 0,
+      unreadOnly = false,
+      activityTypes,
+    } = options;
 
-    const groupIds = (userGroups || []).map((g: any) => g.group_id);
-
-    // Get recent predictions from groups
-    if (groupIds.length > 0) {
-      const { data: predictions } = await supabase
-        .from('predictions')
-        .select(
-          `
-          id,
-          user_id,
-          race_id,
-          created_at,
-          profiles!predictions_user_id_fkey(username, avatar_url),
-          races(name)
-        `
-        )
-        .in(
-          'user_id',
-          await getUsersFromGroups(groupIds)
-        )
-        .order('created_at', { ascending: false })
-        .limit(10);
-
-      predictions?.forEach((pred: any) => {
-        activities.push({
-          id: `pred-${pred.id}`,
-          type: 'prediction',
-          user_id: pred.user_id,
-          username: pred.profiles?.username || 'Someone',
-          avatar_url: pred.profiles?.avatar_url || null,
-          title: 'Made a prediction',
-          description: `for ${pred.races?.name || 'upcoming race'}`,
-          timestamp: pred.created_at,
-          icon: 'create',
-          color: '#00d9ff',
-        });
-      });
-    }
-
-    // Get recent achievements (check user's recent achievements)
-    const { data: recentAchievements } = await supabase
-      .from('user_achievements')
-      .select(
-        `
-        id,
-        user_id,
-        achievement_id,
-        unlocked_at,
-        profiles!user_achievements_user_id_fkey(username, avatar_url)
-      `
-      )
+    let query = supabase
+      .from('activity_feed')
+      .select(`
+        *,
+        related_user:profiles!activity_feed_related_user_id_fkey(username, avatar_url),
+        related_race:races!activity_feed_related_race_id_fkey(name, date),
+        related_group:groups!activity_feed_related_group_id_fkey(name)
+      `)
       .eq('user_id', userId)
-      .order('unlocked_at', { ascending: false })
-      .limit(5);
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
 
-    recentAchievements?.forEach((ach: any) => {
-      activities.push({
-        id: `ach-${ach.id}`,
-        type: 'achievement',
-        user_id: ach.user_id,
-        username: ach.profiles?.username || 'You',
-        avatar_url: ach.profiles?.avatar_url || null,
-        title: 'Unlocked achievement',
-        description: getAchievementName(ach.achievement_id),
-        timestamp: ach.unlocked_at,
-        icon: 'trophy',
-        color: '#ffd93d',
-      });
-    });
-
-    // Get recent race results
-    const { data: recentRaces } = await supabase
-      .from('races')
-      .select('id, name, date')
-      .lt('date', new Date().toISOString())
-      .order('date', { ascending: false })
-      .limit(3);
-
-    recentRaces?.forEach((race: any) => {
-      activities.push({
-        id: `race-${race.id}`,
-        type: 'race_result',
-        user_id: 'system',
-        username: 'MotoSense',
-        avatar_url: null,
-        title: 'Race completed',
-        description: race.name,
-        timestamp: race.date,
-        metadata: { race_id: race.id },
-        icon: 'checkmark-circle',
-        color: '#4caf50',
-      });
-    });
-
-    // Get recent group messages from user's groups
-    if (groupIds.length > 0) {
-      const { data: messages } = await supabase
-        .from('group_messages')
-        .select(
-          `
-          id,
-          user_id,
-          group_id,
-          created_at,
-          profiles!group_messages_user_id_fkey(username, avatar_url),
-          groups(name)
-        `
-        )
-        .in('group_id', groupIds)
-        .neq('user_id', userId) // Don't show own messages
-        .order('created_at', { ascending: false})
-        .limit(10);
-
-      messages?.forEach((msg: any) => {
-        activities.push({
-          id: `msg-${msg.id}`,
-          type: 'group_message',
-          user_id: msg.user_id,
-          username: msg.profiles?.username || 'Someone',
-          avatar_url: msg.profiles?.avatar_url || null,
-          title: 'Sent a message',
-          description: `in ${msg.groups?.name || 'a group'}`,
-          timestamp: msg.created_at,
-          metadata: { group_id: msg.group_id },
-          icon: 'chatbubble',
-          color: '#9c27b0',
-        });
-      });
+    if (unreadOnly) {
+      query = query.eq('is_read', false);
     }
 
-    // Get recent rivalry results
-    const { data: rivalryStats } = await supabase
-      .from('rivalry_stats')
-      .select(
-        `
-        id,
-        rivalry_id,
-        result,
-        calculated_at,
-        rivalries!rivalry_stats_rivalry_id_fkey(
-          user_id,
-          rival_id,
-          profiles!rivalries_rival_id_fkey(username, avatar_url)
-        )
-      `
-      )
-      .order('calculated_at', { ascending: false })
-      .limit(5);
+    if (activityTypes && activityTypes.length > 0) {
+      query = query.in('activity_type', activityTypes);
+    }
 
-    rivalryStats?.forEach((stat: any) => {
-      if (stat.rivalries?.user_id === userId) {
-        activities.push({
-          id: `rivalry-${stat.id}`,
-          type: stat.result === 'win' ? 'rivalry_win' : 'rivalry_loss',
-          user_id: userId,
-          username: 'You',
-          avatar_url: null,
-          title: stat.result === 'win' ? 'Won against rival' : 'Lost to rival',
-          description: stat.rivalries?.profiles?.username || 'Unknown',
-          timestamp: stat.calculated_at,
-          icon: stat.result === 'win' ? 'trophy' : 'trending-down',
-          color: stat.result === 'win' ? '#4caf50' : '#ff6b6b',
-        });
-      }
-    });
+    const { data, error } = await query;
 
-    // Sort all activities by timestamp
-    activities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    if (error) throw error;
 
-    return activities.slice(0, limit);
+    return data || [];
   } catch (error) {
     console.error('Error fetching activity feed:', error);
     return [];
   }
-};
+}
 
-/**
- * Get global activity feed (all users)
- */
-export const getGlobalActivityFeed = async (limit: number = 20): Promise<Activity[]> => {
-  const activities: Activity[] = [];
-
+// Get unread activity count
+export async function getUnreadActivityCount(userId: string): Promise<number> {
   try {
-    // Get recent predictions
-    const { data: predictions } = await supabase
-      .from('predictions')
-      .select(
-        `
-        id,
-        user_id,
-        race_id,
-        created_at,
-        profiles!predictions_user_id_fkey(username, avatar_url),
-        races(name)
-      `
-      )
-      .order('created_at', { ascending: false })
-      .limit(15);
+    const { count, error } = await supabase
+      .from('activity_feed')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('is_read', false);
 
-    predictions?.forEach((pred: any) => {
-      activities.push({
-        id: `pred-${pred.id}`,
-        type: 'prediction',
-        user_id: pred.user_id,
-        username: pred.profiles?.username || 'Someone',
-        avatar_url: pred.profiles?.avatar_url || null,
-        title: 'Made a prediction',
-        description: `for ${pred.races?.name || 'upcoming race'}`,
-        timestamp: pred.created_at,
-        icon: 'create',
-        color: '#00d9ff',
-      });
-    });
+    if (error) throw error;
 
-    // Get recent race results
-    const { data: recentRaces } = await supabase
-      .from('races')
-      .select('id, name, date')
-      .lt('date', new Date().toISOString())
-      .order('date', { ascending: false })
-      .limit(5);
-
-    recentRaces?.forEach((race: any) => {
-      activities.push({
-        id: `race-${race.id}`,
-        type: 'race_result',
-        user_id: 'system',
-        username: 'MotoSense',
-        avatar_url: null,
-        title: 'Race completed',
-        description: race.name,
-        timestamp: race.date,
-        metadata: { race_id: race.id },
-        icon: 'checkmark-circle',
-        color: '#4caf50',
-      });
-    });
-
-    // Sort by timestamp
-    activities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-
-    return activities.slice(0, limit);
+    return count || 0;
   } catch (error) {
-    console.error('Error fetching global activity feed:', error);
-    return [];
-  }
-};
-
-/**
- * Helper: Get users from groups
- */
-async function getUsersFromGroups(groupIds: string[]): Promise<string[]> {
-  try {
-    const { data } = await supabase
-      .from('group_members')
-      .select('user_id')
-      .in('group_id', groupIds);
-
-    return [...new Set((data || []).map((m: any) => m.user_id))];
-  } catch (error) {
-    return [];
+    console.error('Error fetching unread count:', error);
+    return 0;
   }
 }
 
-/**
- * Helper: Get achievement name from ID
- */
-function getAchievementName(achievementId: string): string {
-  // This would ideally come from the achievements data
-  const achievementNames: Record<string, string> = {
-    first_blood: 'First Blood',
-    rookie: 'Rookie',
-    veteran: 'Veteran',
-    perfectionist: 'Perfectionist',
-    // Add more as needed
+// Mark activity as read
+export async function markActivityAsRead(activityId: string): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('activity_feed')
+      .update({ is_read: true })
+      .eq('id', activityId);
+
+    if (error) throw error;
+
+    return true;
+  } catch (error) {
+    console.error('Error marking activity as read:', error);
+    return false;
+  }
+}
+
+// Mark all activities as read
+export async function markAllActivitiesAsRead(userId: string): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('activity_feed')
+      .update({ is_read: true })
+      .eq('user_id', userId)
+      .eq('is_read', false);
+
+    if (error) throw error;
+
+    return true;
+  } catch (error) {
+    console.error('Error marking all activities as read:', error);
+    return false;
+  }
+}
+
+// Create prediction activity
+export async function createPredictionActivity(
+  userId: string,
+  raceId: string,
+  raceName: string
+): Promise<string | null> {
+  try {
+    const { data, error } = await supabase.rpc('create_prediction_activity', {
+      p_user_id: userId,
+      p_race_id: raceId,
+      p_race_name: raceName,
+    });
+
+    if (error) throw error;
+
+    return data;
+  } catch (error) {
+    console.error('Error creating prediction activity:', error);
+    return null;
+  }
+}
+
+// Create race completion activity
+export async function createRaceCompletionActivity(
+  userId: string,
+  raceId: string,
+  raceName: string,
+  pointsEarned: number,
+  rank: number
+): Promise<string | null> {
+  try {
+    const { data, error } = await supabase.rpc('create_race_completion_activity', {
+      p_user_id: userId,
+      p_race_id: raceId,
+      p_race_name: raceName,
+      p_points_earned: pointsEarned,
+      p_rank: rank,
+    });
+
+    if (error) throw error;
+
+    return data;
+  } catch (error) {
+    console.error('Error creating race completion activity:', error);
+    return null;
+  }
+}
+
+// Create achievement activity
+export async function createAchievementActivity(
+  userId: string,
+  achievementName: string,
+  achievementDescription: string,
+  achievementIcon: string
+): Promise<string | null> {
+  try {
+    const { data, error } = await supabase.rpc('create_achievement_activity', {
+      p_user_id: userId,
+      p_achievement_name: achievementName,
+      p_achievement_description: achievementDescription,
+      p_achievement_icon: achievementIcon,
+    });
+
+    if (error) throw error;
+
+    return data;
+  } catch (error) {
+    console.error('Error creating achievement activity:', error);
+    return null;
+  }
+}
+
+// Create rivalry activity
+export async function createRivalryActivity(
+  userId: string,
+  rivalId: string,
+  rivalUsername: string
+): Promise<string | null> {
+  try {
+    const { data, error } = await supabase.rpc('create_rivalry_activity', {
+      p_user_id: userId,
+      p_rival_id: rivalId,
+      p_rival_username: rivalUsername,
+    });
+
+    if (error) throw error;
+
+    return data;
+  } catch (error) {
+    console.error('Error creating rivalry activity:', error);
+    return null;
+  }
+}
+
+// Create group joined activity
+export async function createGroupJoinedActivity(
+  userId: string,
+  groupId: string,
+  groupName: string
+): Promise<string | null> {
+  try {
+    const { data, error } = await supabase
+      .from('activity_feed')
+      .insert({
+        user_id: userId,
+        activity_type: 'group_joined',
+        title: 'Joined Group',
+        description: `You joined ${groupName}`,
+        related_group_id: groupId,
+        metadata: { group_name: groupName },
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return data.id;
+  } catch (error) {
+    console.error('Error creating group joined activity:', error);
+    return null;
+  }
+}
+
+// Create rank improved activity
+export async function createRankImprovedActivity(
+  userId: string,
+  oldRank: number,
+  newRank: number,
+  context: string
+): Promise<string | null> {
+  try {
+    const { data, error } = await supabase
+      .from('activity_feed')
+      .insert({
+        user_id: userId,
+        activity_type: 'rank_improved',
+        title: 'Rank Improved!',
+        description: `You moved from #${oldRank} to #${newRank} ${context}`,
+        metadata: {
+          old_rank: oldRank,
+          new_rank: newRank,
+          context,
+        },
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return data.id;
+  } catch (error) {
+    console.error('Error creating rank improved activity:', error);
+    return null;
+  }
+}
+
+// Create perfect prediction activity
+export async function createPerfectPredictionActivity(
+  userId: string,
+  raceId: string,
+  raceName: string,
+  pointsEarned: number
+): Promise<string | null> {
+  try {
+    const { data, error } = await supabase
+      .from('activity_feed')
+      .insert({
+        user_id: userId,
+        activity_type: 'perfect_prediction',
+        title: 'Perfect Prediction!',
+        description: `You got all 5 riders correct for ${raceName}!`,
+        related_race_id: raceId,
+        points_earned: pointsEarned,
+        metadata: {
+          race_name: raceName,
+          points: pointsEarned,
+        },
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return data.id;
+  } catch (error) {
+    console.error('Error creating perfect prediction activity:', error);
+    return null;
+  }
+}
+
+// Subscribe to new activities (real-time)
+export function subscribeToActivityFeed(
+  userId: string,
+  onNewActivity: (activity: ActivityFeed) => void
+) {
+  const channel = supabase
+    .channel(`activity_feed_${userId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'activity_feed',
+        filter: `user_id=eq.${userId}`,
+      },
+      async (payload) => {
+        // Fetch the full activity with joined data
+        const { data } = await supabase
+          .from('activity_feed')
+          .select(`
+            *,
+            related_user:profiles!activity_feed_related_user_id_fkey(username, avatar_url),
+            related_race:races!activity_feed_related_race_id_fkey(name, date),
+            related_group:groups!activity_feed_related_group_id_fkey(name)
+          `)
+          .eq('id', payload.new.id)
+          .single();
+
+        if (data) {
+          onNewActivity(data);
+        }
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}
+
+// Get activity icon and color based on type
+export function getActivityIcon(activityType: ActivityType): {
+  name: string;
+  color: string;
+} {
+  const iconMap: Record<ActivityType, { name: string; color: string }> = {
+    prediction_made: { name: 'checkmark-circle', color: '#00d9ff' },
+    race_completed: { name: 'flag', color: '#4caf50' },
+    achievement_unlocked: { name: 'trophy', color: '#ffd93d' },
+    group_joined: { name: 'people', color: '#9c27b0' },
+    rivalry_created: { name: 'flash', color: '#ff6b6b' },
+    challenge_won: { name: 'medal', color: '#ff9800' },
+    rank_improved: { name: 'trending-up', color: '#00d9ff' },
+    perfect_prediction: { name: 'star', color: '#ffd93d' },
   };
 
-  return achievementNames[achievementId] || 'New achievement';
+  return iconMap[activityType] || { name: 'information-circle', color: '#8892b0' };
 }
 
-/**
- * Format activity timestamp
- */
-export const formatActivityTime = (timestamp: string): string => {
+// Format time ago
+export function formatTimeAgo(dateString: string): string {
+  const date = new Date(dateString);
   const now = new Date();
-  const date = new Date(timestamp);
   const diffMs = now.getTime() - date.getTime();
   const diffMins = Math.floor(diffMs / 60000);
   const diffHours = Math.floor(diffMs / 3600000);
@@ -342,4 +406,4 @@ export const formatActivityTime = (timestamp: string): string => {
   if (diffDays < 7) return `${diffDays}d ago`;
 
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-};
+}

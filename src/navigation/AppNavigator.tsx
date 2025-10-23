@@ -21,6 +21,7 @@ import GroupsScreen from '../screens/GroupsScreen';
 import GroupDetailsScreen from '../screens/GroupDetailsScreen';
 import GroupLeaderboardScreen from '../screens/GroupLeaderboardScreen';
 import GroupChatScreen from '../screens/GroupChatScreen';
+import ActivityFeedScreen from '../screens/ActivityFeedScreen';
 import LoginScreen from '../screens/LoginScreen';
 import SignupScreen from '../screens/SignupScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
@@ -119,6 +120,15 @@ function MainTabs() {
         options={{
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="radio" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Activity"
+        component={ActivityFeedScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="notifications" size={size} color={color} />
           ),
         }}
       />
