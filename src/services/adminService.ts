@@ -4,7 +4,8 @@ import { Race, Season } from '../types';
 export interface RaceInput {
   name: string;
   series: 'supercross' | 'motocross' | 'arenacross';
-  trackId: string;
+  trackName?: string;
+  trackLocation?: string;
   date: string; // ISO format
   round: number;
   type: 'practice' | 'qualifying' | 'heat' | 'main';
@@ -71,11 +72,10 @@ export const createRace = async (raceData: RaceInput): Promise<Race> => {
     .insert([{
       name: raceData.name,
       series: raceData.series,
-      track_id: raceData.trackId,
+      track_name: raceData.trackName || raceData.name,
+      track_location: raceData.trackLocation || 'TBD',
       date: raceData.date,
       round: raceData.round,
-      type: raceData.type,
-      status: raceData.status,
       season_id: raceData.season_id,
       is_simulation: raceData.is_simulation,
       actual_results: raceData.actual_results || null,

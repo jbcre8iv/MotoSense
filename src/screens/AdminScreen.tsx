@@ -25,6 +25,8 @@ export default function AdminScreen({ navigation }: AdminScreenProps) {
     series: 'supercross',
     date: '',
     round: 1,
+    trackName: '',
+    trackLocation: '',
     type: 'main',
     status: 'upcoming',
     is_simulation: true,
@@ -40,10 +42,17 @@ export default function AdminScreen({ navigation }: AdminScreenProps) {
       if (demoSeason) {
         setSeason(demoSeason);
         setFormData(prev => ({ ...prev, season_id: demoSeason.id }));
+      } else {
+        console.error('[ADMIN] No demo season found in database');
+        Alert.alert(
+          'Setup Required',
+          'No demo season found. Please run the database migration in Supabase first.',
+          [{ text: 'OK' }]
+        );
       }
     } catch (error) {
       console.error('[ADMIN] Error loading demo season:', error);
-      Alert.alert('Error', 'Failed to load demo season');
+      Alert.alert('Database Error', `Failed to load demo season: ${error}`);
     }
   };
 
@@ -61,7 +70,8 @@ export default function AdminScreen({ navigation }: AdminScreenProps) {
       const raceData: RaceInput = {
         name: formData.name!,
         series: formData.series || 'supercross',
-        trackId: 'placeholder-track-id', // TODO: Replace with actual track selection
+        trackName: formData.trackName || formData.name,
+        trackLocation: formData.trackLocation || 'TBD',
         date: formData.date!,
         round: formData.round || 1,
         type: formData.type || 'main',
@@ -82,6 +92,8 @@ export default function AdminScreen({ navigation }: AdminScreenProps) {
               series: 'supercross',
               date: '',
               round: (formData.round || 1) + 1,
+              trackName: '',
+              trackLocation: '',
               type: 'main',
               status: 'upcoming',
               is_simulation: true,
