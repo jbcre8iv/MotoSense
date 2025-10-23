@@ -150,7 +150,7 @@ export default function AdminScreen({ navigation }: AdminScreenProps) {
 
           <Text style={styles.label}>Series</Text>
           <View style={styles.pickerRow}>
-            {(['supercross', 'motocross', 'arenacross'] as const).map((series) => (
+            {(['supercross', 'motocross', 'championship'] as const).map((series) => (
               <TouchableOpacity
                 key={series}
                 style={[

@@ -11,6 +11,7 @@ export default function RacesScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [hasDemoRaces, setHasDemoRaces] = useState(false);
+  const [selectedSeries, setSelectedSeries] = useState<'all' | 'supercross' | 'motocross' | 'championship'>('all');
 
   useEffect(() => {
     loadRaces();
@@ -67,6 +68,42 @@ export default function RacesScreen() {
         <View style={styles.section}>
           {hasDemoRaces && <DemoModeBanner />}
 
+          {/* Series Filter Chips */}
+          <View style={styles.filterContainer}>
+            <TouchableOpacity
+              style={[styles.filterChip, selectedSeries === 'all' && styles.filterChipActive]}
+              onPress={() => setSelectedSeries('all')}
+            >
+              <Text style={[styles.filterChipText, selectedSeries === 'all' && styles.filterChipTextActive]}>
+                All
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.filterChip, selectedSeries === 'supercross' && styles.filterChipActive]}
+              onPress={() => setSelectedSeries('supercross')}
+            >
+              <Text style={[styles.filterChipText, selectedSeries === 'supercross' && styles.filterChipTextActive]}>
+                Supercross
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.filterChip, selectedSeries === 'motocross' && styles.filterChipActive]}
+              onPress={() => setSelectedSeries('motocross')}
+            >
+              <Text style={[styles.filterChipText, selectedSeries === 'motocross' && styles.filterChipTextActive]}>
+                Motocross
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.filterChip, selectedSeries === 'championship' && styles.filterChipActive]}
+              onPress={() => setSelectedSeries('championship')}
+            >
+              <Text style={[styles.filterChipText, selectedSeries === 'championship' && styles.filterChipTextActive]}>
+                Championship
+              </Text>
+            </TouchableOpacity>
+          </View>
+
           {races.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyStateText}>No races found</Text>
@@ -75,7 +112,9 @@ export default function RacesScreen() {
               </Text>
             </View>
           ) : (
-            races.map((race) => {
+            races
+              .filter(race => selectedSeries === 'all' || race.series === selectedSeries)
+              .map((race) => {
               const track = mockTracks.find(t => t.id === race.trackId);
               const raceDate = new Date(race.date);
               const isUpcoming = race.status === 'upcoming';
@@ -308,5 +347,31 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#8892b0',
     fontStyle: 'italic',
+  },
+  filterContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 16,
+    flexWrap: 'wrap',
+  },
+  filterChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#1a1f3a',
+    borderWidth: 1,
+    borderColor: '#2a2f4a',
+  },
+  filterChipActive: {
+    backgroundColor: '#00d9ff',
+    borderColor: '#00d9ff',
+  },
+  filterChipText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#8892b0',
+  },
+  filterChipTextActive: {
+    color: '#0a0e27',
   },
 });

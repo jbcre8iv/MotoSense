@@ -31,7 +31,7 @@ export interface Track {
 }
 
 export type RaceType = 'practice' | 'qualifying' | 'heat' | 'main';
-export type Series = 'supercross' | 'motocross' | 'arenacross';
+export type Series = 'supercross' | 'motocross' | 'championship';
 export type SeasonStatus = 'upcoming' | 'active' | 'demo' | 'completed';
 
 // NEW: Season interface for multi-season support
