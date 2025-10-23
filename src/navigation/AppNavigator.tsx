@@ -17,6 +17,7 @@ import ProfileScreen from '../screens/ProfileScreen';
 import RivalriesScreen from '../screens/RivalriesScreen';
 import RivalryDetailScreen from '../screens/RivalryDetailScreen';
 import AddRivalScreen from '../screens/AddRivalScreen';
+import AnalyticsDashboardScreen from '../screens/AnalyticsDashboardScreen';
 import GroupsScreen from '../screens/GroupsScreen';
 import GroupDetailsScreen from '../screens/GroupDetailsScreen';
 import GroupLeaderboardScreen from '../screens/GroupLeaderboardScreen';
@@ -71,6 +72,7 @@ function ProfileStack() {
       }}
     >
       <Stack.Screen name="ProfileMain" component={ProfileScreen} />
+      <Stack.Screen name="Analytics" component={AnalyticsDashboardScreen} />
       <Stack.Screen name="Rivalries" component={RivalriesScreen} />
       <Stack.Screen name="RivalryDetail" component={RivalryDetailScreen} />
       <Stack.Screen name="AddRival" component={AddRivalScreen} />
