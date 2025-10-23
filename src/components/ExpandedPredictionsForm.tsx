@@ -2,9 +2,8 @@
  * Expanded Predictions Form Component
  *
  * Allows users to make bonus predictions for:
- * - Holeshot winner
- * - Fastest lap
- * - Qualifying top 3
+ * - Holeshot winner (5 pts)
+ * - Fastest lap (5 pts)
  */
 
 import React, { useState } from 'react';
@@ -36,28 +35,21 @@ interface ExpandedPredictionsFormProps {
   riders: Rider[];
   onSave: (predictions: ExpandedPrediction) => void;
   initialPredictions?: ExpandedPrediction;
+  top5Picks: string[];
 }
 
-type SelectionType =
-  | 'holeshot'
-  | 'fastestLap'
-  | 'qualifying1'
-  | 'qualifying2'
-  | 'qualifying3'
-  | null;
+type SelectionType = 'holeshot' | 'fastestLap' | null;
 
 export default function ExpandedPredictionsForm({
   riders,
   onSave,
   initialPredictions,
+  top5Picks,
 }: ExpandedPredictionsFormProps) {
   const [expanded, setExpanded] = useState<ExpandedPrediction>(
     initialPredictions || {
-      holeshotWinnerId: null,
-      fastestLapRiderId: null,
-      qualifying1Id: null,
-      qualifying2Id: null,
-      qualifying3Id: null,
+      holeshot: null,
+      fastestLap: null,
     }
   );
   const [showSelector, setShowSelector] = useState(false);
@@ -74,22 +66,10 @@ export default function ExpandedPredictionsForm({
 
     const newExpanded = { ...expanded };
 
-    switch (selectionType) {
-      case 'holeshot':
-        newExpanded.holeshotWinnerId = riderId;
-        break;
-      case 'fastestLap':
-        newExpanded.fastestLapRiderId = riderId;
-        break;
-      case 'qualifying1':
-        newExpanded.qualifying1Id = riderId;
-        break;
-      case 'qualifying2':
-        newExpanded.qualifying2Id = riderId;
-        break;
-      case 'qualifying3':
-        newExpanded.qualifying3Id = riderId;
-        break;
+    if (selectionType === 'holeshot') {
+      newExpanded.holeshot = riderId;
+    } else if (selectionType === 'fastestLap') {
+      newExpanded.fastestLap = riderId;
     }
 
     setExpanded(newExpanded);
@@ -98,10 +78,7 @@ export default function ExpandedPredictionsForm({
   };
 
   const handleSave = () => {
-    const validation = validateExpandedPredictions(
-      expanded,
-      riders.map((r) => r.id)
-    );
+    const validation = validateExpandedPredictions(expanded, top5Picks);
 
     if (!validation.valid) {
       Alert.alert('Invalid Selections', validation.errors.join('\n'));
@@ -124,12 +101,6 @@ export default function ExpandedPredictionsForm({
         return 'Select Holeshot Winner';
       case 'fastestLap':
         return 'Select Fastest Lap Rider';
-      case 'qualifying1':
-        return 'Select Qualifying 1st';
-      case 'qualifying2':
-        return 'Select Qualifying 2nd';
-      case 'qualifying3':
-        return 'Select Qualifying 3rd';
       default:
         return 'Select Rider';
     }
@@ -188,12 +159,12 @@ export default function ExpandedPredictionsForm({
         Earn bonus points by correctly predicting these additional categories
       </Text>
 
-      {/* Bonus Categories */}
+      {/* Bonus Categories Info */}
       {getBonusPointDescriptions().map((bonus, index) => (
         <View key={index} style={styles.bonusCard}>
           <View style={styles.bonusHeader}>
             <View style={[styles.bonusIcon, { backgroundColor: `${bonus.color}20` }]}>
-              <Ionicons name={bonus.icon as any} size={20} color={bonus.color} />
+              <Ionicons name={bonus.icon} size={20} color={bonus.color} />
             </View>
             <View style={styles.bonusInfo}>
               <Text style={styles.bonusTitle}>{bonus.category}</Text>
@@ -208,7 +179,7 @@ export default function ExpandedPredictionsForm({
 
       {/* Holeshot Winner */}
       <View style={styles.predictionSection}>
-        <Text style={styles.sectionLabel}>Holeshot Winner (15 pts)</Text>
+        <Text style={styles.sectionLabel}>Holeshot Winner (5 pts)</Text>
         <TouchableOpacity
           style={styles.selectionButton}
           onPress={() => openSelector('holeshot')}
@@ -216,10 +187,10 @@ export default function ExpandedPredictionsForm({
           <Text
             style={[
               styles.selectionText,
-              !expanded.holeshotWinnerId && styles.placeholderText,
+              !expanded.holeshot && styles.placeholderText,
             ]}
           >
-            {getRiderName(expanded.holeshotWinnerId)}
+            {getRiderName(expanded.holeshot)}
           </Text>
           <Ionicons name="chevron-forward" size={20} color="#00d9ff" />
         </TouchableOpacity>
@@ -227,7 +198,7 @@ export default function ExpandedPredictionsForm({
 
       {/* Fastest Lap */}
       <View style={styles.predictionSection}>
-        <Text style={styles.sectionLabel}>Fastest Lap (10 pts)</Text>
+        <Text style={styles.sectionLabel}>Fastest Lap (5 pts)</Text>
         <TouchableOpacity
           style={styles.selectionButton}
           onPress={() => openSelector('fastestLap')}
@@ -235,69 +206,10 @@ export default function ExpandedPredictionsForm({
           <Text
             style={[
               styles.selectionText,
-              !expanded.fastestLapRiderId && styles.placeholderText,
+              !expanded.fastestLap && styles.placeholderText,
             ]}
           >
-            {getRiderName(expanded.fastestLapRiderId)}
-          </Text>
-          <Ionicons name="chevron-forward" size={20} color="#00d9ff" />
-        </TouchableOpacity>
-      </View>
-
-      {/* Qualifying */}
-      <View style={styles.predictionSection}>
-        <Text style={styles.sectionLabel}>Qualifying Top 3 (5 pts each)</Text>
-
-        <TouchableOpacity
-          style={[styles.selectionButton, { marginBottom: 8 }]}
-          onPress={() => openSelector('qualifying1')}
-        >
-          <View style={styles.qualifyingLabel}>
-            <Text style={styles.qualifyingPosition}>1st</Text>
-          </View>
-          <Text
-            style={[
-              styles.selectionText,
-              !expanded.qualifying1Id && styles.placeholderText,
-            ]}
-          >
-            {getRiderName(expanded.qualifying1Id)}
-          </Text>
-          <Ionicons name="chevron-forward" size={20} color="#00d9ff" />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.selectionButton, { marginBottom: 8 }]}
-          onPress={() => openSelector('qualifying2')}
-        >
-          <View style={styles.qualifyingLabel}>
-            <Text style={styles.qualifyingPosition}>2nd</Text>
-          </View>
-          <Text
-            style={[
-              styles.selectionText,
-              !expanded.qualifying2Id && styles.placeholderText,
-            ]}
-          >
-            {getRiderName(expanded.qualifying2Id)}
-          </Text>
-          <Ionicons name="chevron-forward" size={20} color="#00d9ff" />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.selectionButton}
-          onPress={() => openSelector('qualifying3')}
-        >
-          <View style={styles.qualifyingLabel}>
-            <Text style={styles.qualifyingPosition}>3rd</Text>
-          </View>
-          <Text
-            style={[
-              styles.selectionText,
-              !expanded.qualifying3Id && styles.placeholderText,
-            ]}
-          >
-            {getRiderName(expanded.qualifying3Id)}
+            {getRiderName(expanded.fastestLap)}
           </Text>
           <Ionicons name="chevron-forward" size={20} color="#00d9ff" />
         </TouchableOpacity>
@@ -418,20 +330,6 @@ const styles = StyleSheet.create({
   },
   placeholderText: {
     color: '#8892b0',
-  },
-  qualifyingLabel: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#00d9ff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  qualifyingPosition: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#0a0e27',
   },
   saveButton: {
     flexDirection: 'row',
