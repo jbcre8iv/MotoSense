@@ -76,8 +76,6 @@ export const createRace = async (raceData: RaceInput): Promise<Race> => {
       track_location: raceData.trackLocation || 'TBD',
       date: raceData.date,
       round: raceData.round,
-      type: raceData.type,
-      status: raceData.status,
       season_year: 2025,
       season_id: raceData.season_id,
       is_simulation: raceData.is_simulation,
