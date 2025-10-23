@@ -111,7 +111,7 @@ SET
 FROM seasons s
 WHERE s.year = 2025
   AND r.season_id IS NULL
-  AND EXTRACT(YEAR FROM r.date) = 2025;
+  AND EXTRACT(YEAR FROM r.date::timestamp) = 2025;
 
 -- Link any existing predictions to 2025 demo season
 UPDATE predictions p

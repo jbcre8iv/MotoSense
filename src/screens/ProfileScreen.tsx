@@ -372,6 +372,14 @@ export default function ProfileScreen() {
           <Text style={styles.devButtonText}>Load Sample Data</Text>
         </TouchableOpacity>
 
+        <TouchableOpacity
+          style={styles.devButton}
+          onPress={() => navigation.navigate('Admin' as never)}
+        >
+          <Ionicons name="construct-outline" size={20} color="#4CAF50" />
+          <Text style={[styles.devButtonText, { color: '#4CAF50' }]}>Admin Panel</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity style={styles.resetButton} onPress={handleResetData}>
           <Ionicons name="refresh" size={20} color="#ff6b6b" />
           <Text style={styles.resetButtonText}>Reset All Data</Text>

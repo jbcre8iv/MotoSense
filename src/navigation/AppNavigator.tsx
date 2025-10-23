@@ -31,6 +31,7 @@ import ActivityFeedScreen from '../screens/ActivityFeedScreen';
 import LoginScreen from '../screens/LoginScreen';
 import SignupScreen from '../screens/SignupScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
+import AdminScreen from '../screens/AdminScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -87,6 +88,7 @@ function ProfileStack() {
       <Stack.Screen name="PredictionHistory" component={PredictionHistoryScreen} />
       <Stack.Screen name="RiderProfile" component={RiderProfileScreen} />
       <Stack.Screen name="TrackProfile" component={TrackProfileScreen} />
+      <Stack.Screen name="Admin" component={AdminScreen} />
     </Stack.Navigator>
   );
 }
