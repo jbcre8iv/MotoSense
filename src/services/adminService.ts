@@ -3,7 +3,7 @@ import { Race, Season } from '../types';
 
 export interface RaceInput {
   name: string;
-  series: 'supercross' | 'motocross' | 'arenacross';
+  series: 'supercross' | 'motocross' | 'championship';
   trackName?: string;
   trackLocation?: string;
   date: string; // ISO format
