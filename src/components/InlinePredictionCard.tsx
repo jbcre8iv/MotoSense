@@ -12,6 +12,7 @@ interface InlinePredictionCardProps {
   raceId: string;
   raceName: string;
   raceDate: string;
+  raceStatus: 'upcoming' | 'open' | 'completed';
   userId: string;
   onPredictionSaved: () => void;
   existingPrediction?: SupabasePrediction | null;
@@ -21,6 +22,7 @@ export default function InlinePredictionCard({
   raceId,
   raceName,
   raceDate,
+  raceStatus,
   userId,
   onPredictionSaved,
   existingPrediction
@@ -36,12 +38,16 @@ export default function InlinePredictionCard({
     return (existingPrediction?.confidence_level as ConfidenceLevel) || 3; // Default to neutral
   });
 
-  // Check if predictions are locked (within 1 hour of race start)
+  // Beta Mode: Predictions are only available when race status is 'open'
+  // In production, we'll also check date/time proximity
   const isPredictionLocked = () => {
-    const now = new Date();
-    const race = new Date(raceDate);
-    const oneHourBeforeRace = new Date(race.getTime() - 60 * 60 * 1000);
-    return now >= oneHourBeforeRace;
+    // If race is not in 'open' status, predictions are locked
+    if (raceStatus !== 'open') {
+      return true;
+    }
+
+    // Race is open, allow predictions
+    return false;
   };
 
   const isLocked = isPredictionLocked();
@@ -105,16 +111,26 @@ export default function InlinePredictionCard({
   };
 
   const getTitle = () => {
-    if (isLocked && !existingPrediction) {
-      return 'Predictions Locked';
+    if (raceStatus === 'completed') {
+      return existingPrediction ? 'Your Prediction (Results Revealed)' : 'Predictions Closed';
     }
-    if (isLocked && existingPrediction) {
-      return 'Your Prediction (Locked)';
+    if (raceStatus === 'upcoming') {
+      return 'Predictions Not Yet Open';
     }
     if (existingPrediction) {
       return 'Your Prediction';
     }
     return 'Pick Your Top 5';
+  };
+
+  const getLockMessage = () => {
+    if (raceStatus === 'upcoming') {
+      return 'Predictions will open when admin starts this round';
+    }
+    if (raceStatus === 'completed') {
+      return 'This round has been completed';
+    }
+    return 'Predictions locked 1 hour before race start';
   };
 
   return (
@@ -123,7 +139,7 @@ export default function InlinePredictionCard({
         <Text style={styles.title}>{getTitle()}</Text>
         {isLocked && (
           <Text style={styles.lockMessage}>
-            Predictions locked 1 hour before race start
+            {getLockMessage()}
           </Text>
         )}
       </View>

@@ -48,6 +48,8 @@ export interface Season {
   updated_at: string;
 }
 
+export type RaceStatus = 'upcoming' | 'open' | 'completed';
+
 export interface Race {
   id: string;
   name: string;
@@ -56,7 +58,7 @@ export interface Race {
   date: string; // ISO date string
   round: number;
   type: RaceType;
-  status: 'upcoming' | 'live' | 'completed';
+  status: RaceStatus; // Beta progression: upcoming → open → completed
   // NEW: Season fields
   season_id?: string;
   is_simulation?: boolean; // true = demo mode (2025 replay), false = live
@@ -68,6 +70,10 @@ export interface Race {
     }>;
   };
   results_revealed_at?: string;
+  // NEW: Beta progression fields
+  opened_at?: string; // When predictions became available
+  closes_at?: string; // When predictions auto-close
+  auto_progress_hours?: number; // Hours until auto-progression (default 48)
 }
 
 export interface RaceResult {

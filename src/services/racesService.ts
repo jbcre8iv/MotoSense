@@ -30,7 +30,7 @@ export const getRaces = async (): Promise<Race[]> => {
     date: race.date,
     round: race.round,
     type: 'main', // Default type since it's not in database
-    status: 'upcoming', // Default status since it's not in database
+    status: race.status || 'upcoming', // Use actual status from database
     season_id: race.season_id,
     is_simulation: race.is_simulation,
     actual_results: race.actual_results,
@@ -66,7 +66,7 @@ export const getDemoRaces = async (): Promise<Race[]> => {
     date: race.date,
     round: race.round,
     type: 'main',
-    status: 'upcoming',
+    status: race.status || 'upcoming', // Use actual status from database
     season_id: race.season_id,
     is_simulation: race.is_simulation,
     actual_results: race.actual_results,
@@ -104,7 +104,7 @@ export const getUpcomingRaces = async (): Promise<Race[]> => {
     date: race.date,
     round: race.round,
     type: 'main',
-    status: 'upcoming',
+    status: race.status || 'upcoming', // Use actual status from database
     season_id: race.season_id,
     is_simulation: race.is_simulation,
     actual_results: race.actual_results,
@@ -142,7 +142,7 @@ export const getRaceById = async (raceId: string): Promise<Race | null> => {
     date: data.date,
     round: data.round,
     type: 'main',
-    status: 'upcoming',
+    status: data.status || 'upcoming', // Use actual status from database
     season_id: data.season_id,
     is_simulation: data.is_simulation,
     actual_results: data.actual_results,

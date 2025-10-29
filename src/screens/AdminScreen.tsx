@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Season } from '../types';
+import { Season, Race } from '../types';
 import { adminService, RaceInput } from '../services/adminService';
 
 interface AdminScreenProps {
@@ -19,7 +19,9 @@ interface AdminScreenProps {
 
 export default function AdminScreen({ navigation }: AdminScreenProps) {
   const [loading, setLoading] = useState(false);
+  const [progressLoading, setProgressLoading] = useState(false);
   const [season, setSeason] = useState<Season | null>(null);
+  const [currentRound, setCurrentRound] = useState<Race | null>(null);
   const [formData, setFormData] = useState<Partial<RaceInput>>({
     name: '',
     series: 'supercross',
@@ -34,6 +36,7 @@ export default function AdminScreen({ navigation }: AdminScreenProps) {
 
   useEffect(() => {
     loadDemoSeason();
+    loadCurrentRound();
   }, []);
 
   const loadDemoSeason = async () => {
@@ -54,6 +57,98 @@ export default function AdminScreen({ navigation }: AdminScreenProps) {
       console.error('[ADMIN] Error loading demo season:', error);
       Alert.alert('Database Error', `Failed to load demo season: ${error}`);
     }
+  };
+
+  const loadCurrentRound = async () => {
+    try {
+      const round = await adminService.getCurrentRound();
+      setCurrentRound(round);
+    } catch (error) {
+      console.error('[ADMIN] Error loading current round:', error);
+    }
+  };
+
+  const handleProgressRound = async () => {
+    setProgressLoading(true);
+    try {
+      const result = await adminService.progressRound();
+
+      if (result.success) {
+        Alert.alert('Success', result.message);
+        await loadCurrentRound(); // Reload current round
+      } else {
+        Alert.alert('Error', result.message);
+      }
+    } catch (error) {
+      console.error('[ADMIN] Error progressing round:', error);
+      Alert.alert('Error', 'Failed to progress round');
+    } finally {
+      setProgressLoading(false);
+    }
+  };
+
+  const handleDigressRound = async () => {
+    Alert.alert(
+      'Go Back One Round?',
+      'This will close the current round and re-open the previous round. Are you sure?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Go Back',
+          style: 'destructive',
+          onPress: async () => {
+            setProgressLoading(true);
+            try {
+              const result = await adminService.digressRound();
+
+              if (result.success) {
+                Alert.alert('Success', result.message);
+                await loadCurrentRound(); // Reload current round
+              } else {
+                Alert.alert('Error', result.message);
+              }
+            } catch (error) {
+              console.error('[ADMIN] Error digressing round:', error);
+              Alert.alert('Error', 'Failed to go back');
+            } finally {
+              setProgressLoading(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleResetDemoSeason = async () => {
+    Alert.alert(
+      'Reset Demo Season?',
+      'This will reset ALL races back to upcoming status. All round progression will be lost. This is for beta testing only. Are you sure?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset Season',
+          style: 'destructive',
+          onPress: async () => {
+            setProgressLoading(true);
+            try {
+              const result = await adminService.resetDemoSeason();
+
+              if (result.success) {
+                Alert.alert('Success', result.message);
+                await loadCurrentRound(); // Reload current round
+              } else {
+                Alert.alert('Error', result.message);
+              }
+            } catch (error) {
+              console.error('[ADMIN] Error resetting demo season:', error);
+              Alert.alert('Error', 'Failed to reset demo season');
+            } finally {
+              setProgressLoading(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleCreateRace = async () => {
@@ -134,6 +229,93 @@ export default function AdminScreen({ navigation }: AdminScreenProps) {
             <Text style={styles.seasonStatus}>Status: {season.status}</Text>
           </View>
         )}
+
+        {/* Round Progression Controls */}
+        <View style={styles.progressCard}>
+          <Text style={styles.formTitle}>Beta Round Control</Text>
+
+          {currentRound ? (
+            <>
+              <View style={styles.currentRoundInfo}>
+                <Text style={styles.roundLabel}>Current Round</Text>
+                <Text style={styles.roundName}>
+                  {currentRound.series.charAt(0).toUpperCase() + currentRound.series.slice(1)} Round{' '}
+                  {currentRound.round}
+                </Text>
+                <Text style={styles.roundLocation}>{currentRound.name}</Text>
+                <View style={styles.statusBadge}>
+                  <View style={styles.statusDot} />
+                  <Text style={styles.statusText}>Predictions Open</Text>
+                </View>
+              </View>
+
+              <View style={styles.buttonRow}>
+                <TouchableOpacity
+                  style={[styles.digressButton, progressLoading && styles.buttonDisabled]}
+                  onPress={handleDigressRound}
+                  disabled={progressLoading}
+                >
+                  {progressLoading ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <>
+                      <Ionicons name="arrow-back" size={18} color="#fff" />
+                      <Text style={styles.buttonText}>Digress</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.progressButton, progressLoading && styles.buttonDisabled]}
+                  onPress={handleProgressRound}
+                  disabled={progressLoading}
+                >
+                  {progressLoading ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <>
+                      <Text style={styles.buttonText}>Progress</Text>
+                      <Ionicons name="arrow-forward" size={18} color="#fff" />
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity
+                style={[styles.resetSeasonButton, progressLoading && styles.buttonDisabled]}
+                onPress={handleResetDemoSeason}
+                disabled={progressLoading}
+              >
+                {progressLoading ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <>
+                    <Ionicons name="refresh-circle" size={18} color="#fff" />
+                    <Text style={styles.buttonText}>Reset Demo Season</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </>
+          ) : (
+            <View style={styles.noRoundContainer}>
+              <Text style={styles.noRoundText}>No round currently open</Text>
+              <TouchableOpacity
+                style={[styles.progressButton, progressLoading && styles.buttonDisabled]}
+                onPress={handleProgressRound}
+                disabled={progressLoading}
+              >
+                {progressLoading ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <>
+                    <Ionicons name="play" size={18} color="#fff" style={{ marginRight: 8 }} />
+                    <Text style={styles.buttonText}>Start Round 1</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
 
         {/* Create Race Form */}
         <View style={styles.formCard}>
@@ -420,5 +602,105 @@ const styles = StyleSheet.create({
     color: '#4CAF50',
     fontSize: 14,
     lineHeight: 20,
+  },
+  progressCard: {
+    backgroundColor: '#1a1f3a',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#2a2f4a',
+  },
+  currentRoundInfo: {
+    marginBottom: 20,
+  },
+  roundLabel: {
+    fontSize: 12,
+    color: '#888',
+    marginBottom: 4,
+  },
+  roundName: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#fff',
+    marginBottom: 4,
+  },
+  roundLocation: {
+    fontSize: 16,
+    color: '#ccc',
+    marginBottom: 12,
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#4CAF50',
+    marginRight: 6,
+  },
+  statusText: {
+    color: '#4CAF50',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  digressButton: {
+    flex: 1,
+    backgroundColor: '#FF9800',
+    borderRadius: 12,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  progressButton: {
+    flex: 1,
+    backgroundColor: '#4CAF50',
+    borderRadius: 12,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  noRoundContainer: {
+    alignItems: 'center',
+    padding: 20,
+  },
+  noRoundText: {
+    color: '#888',
+    fontSize: 14,
+    marginBottom: 16,
+  },
+  resetSeasonButton: {
+    width: '100%',
+    backgroundColor: '#f44336',
+    borderRadius: 12,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 12,
   },
 });

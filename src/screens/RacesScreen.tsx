@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { mockTracks } from '../data';
 import { Race } from '../types';
 import { racesService } from '../services/racesService';
@@ -13,9 +15,11 @@ export default function RacesScreen() {
   const [hasDemoRaces, setHasDemoRaces] = useState(false);
   const [selectedSeries, setSelectedSeries] = useState<'all' | 'supercross' | 'motocross' | 'championship'>('all');
 
-  useEffect(() => {
-    loadRaces();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      loadRaces();
+    }, [])
+  );
 
   const loadRaces = async () => {
     try {
@@ -119,6 +123,43 @@ export default function RacesScreen() {
               const raceDate = new Date(race.date);
               const isUpcoming = race.status === 'upcoming';
 
+              // Get status badge styling
+              const getStatusBadgeStyle = () => {
+                switch (race.status) {
+                  case 'open':
+                    return styles.openBadge;
+                  case 'completed':
+                    return styles.completedBadge;
+                  case 'upcoming':
+                  default:
+                    return styles.upcomingBadge;
+                }
+              };
+
+              const getStatusIcon = () => {
+                switch (race.status) {
+                  case 'open':
+                    return 'radio-button-on';
+                  case 'completed':
+                    return 'checkmark-circle';
+                  case 'upcoming':
+                  default:
+                    return 'time-outline';
+                }
+              };
+
+              const getStatusLabel = () => {
+                switch (race.status) {
+                  case 'open':
+                    return 'OPEN FOR PREDICTIONS';
+                  case 'completed':
+                    return 'COMPLETED';
+                  case 'upcoming':
+                  default:
+                    return 'UPCOMING';
+                }
+              };
+
               return (
                 <View key={race.id} style={styles.raceCard}>
                   <View style={styles.raceHeader}>
@@ -150,11 +191,9 @@ export default function RacesScreen() {
                         year: 'numeric'
                       })}
                     </Text>
-                    <View style={[
-                      styles.statusBadge,
-                      isUpcoming ? styles.upcomingBadge : styles.completedBadge
-                    ]}>
-                      <Text style={styles.statusText}>{race.status.toUpperCase()}</Text>
+                    <View style={[styles.statusBadge, getStatusBadgeStyle()]}>
+                      <Ionicons name={getStatusIcon()} size={12} color="#ffffff" style={{ marginRight: 4 }} />
+                      <Text style={styles.statusText}>{getStatusLabel()}</Text>
                     </View>
                   </View>
 
@@ -310,17 +349,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   upcomingBadge: {
-    backgroundColor: '#00d9ff',
+    backgroundColor: '#8892b0',
+  },
+  openBadge: {
+    backgroundColor: '#4CAF50',
   },
   completedBadge: {
-    backgroundColor: '#4caf50',
+    backgroundColor: '#2196F3',
   },
   statusText: {
     fontSize: 10,
     fontWeight: 'bold',
-    color: '#0a0e27',
+    color: '#ffffff',
   },
   trackInfo: {
     flexDirection: 'row',

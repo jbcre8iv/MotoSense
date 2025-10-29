@@ -307,6 +307,7 @@ export default function ResultsScreen() {
                               raceId={race.id}
                               raceName={race.name}
                               raceDate={race.date}
+                              raceStatus={race.status}
                               userId={user.id}
                               onPredictionSaved={() => handlePredictionSaved(race.id)}
                               existingPrediction={existingPrediction}

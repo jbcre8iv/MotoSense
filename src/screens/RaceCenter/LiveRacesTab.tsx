@@ -9,7 +9,9 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { mockRaces, mockTracks } from '../../data';
+import { mockTracks } from '../../data';
+import { Race } from '../../types';
+import { racesService } from '../../services/racesService';
 import { useAuth } from '../../contexts/AuthContext';
 import { getPredictionForRace, SupabasePrediction } from '../../services/predictionsService';
 
@@ -23,9 +25,27 @@ interface CountdownTime {
 export default function LiveRacesTab({ navigation }: any) {
   const { user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
+  const [races, setRaces] = useState<Race[]>([]);
   const [racePredictions, setRacePredictions] = useState<Record<string, SupabasePrediction | null>>({});
   const [countdowns, setCountdowns] = useState<Record<string, CountdownTime>>({});
   const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Load races from database
+  useEffect(() => {
+    const loadRaces = async () => {
+      try {
+        const fetchedRaces = await racesService.getRaces();
+        // Filter for races with status 'live' or 'in_progress' (for future use)
+        // For now, this will be empty since we don't have live races yet
+        const liveRaces = fetchedRaces.filter(race => race.status === 'live' || race.status === 'in_progress');
+        setRaces(liveRaces);
+      } catch (error) {
+        console.error('[LIVE RACES TAB] Error loading races:', error);
+      }
+    };
+
+    loadRaces();
+  }, []);
 
   // Update current time every second for countdowns
   useEffect(() => {
@@ -39,10 +59,10 @@ export default function LiveRacesTab({ navigation }: any) {
   // Load predictions for all races
   useEffect(() => {
     const loadPredictions = async () => {
-      if (!user) return;
+      if (!user || races.length === 0) return;
 
       const predictions: Record<string, SupabasePrediction | null> = {};
-      for (const race of mockRaces) {
+      for (const race of races) {
         const prediction = await getPredictionForRace(user.id, race.id);
         predictions[race.id] = prediction;
       }
@@ -50,13 +70,13 @@ export default function LiveRacesTab({ navigation }: any) {
     };
 
     loadPredictions();
-  }, [user]);
+  }, [user, races]);
 
   // Calculate countdown for each race
   useEffect(() => {
     const newCountdowns: Record<string, CountdownTime> = {};
 
-    mockRaces.forEach((race) => {
+    races.forEach((race) => {
       const raceDate = new Date(race.date);
       const diff = raceDate.getTime() - currentTime.getTime();
 
@@ -71,16 +91,26 @@ export default function LiveRacesTab({ navigation }: any) {
     });
 
     setCountdowns(newCountdowns);
-  }, [currentTime]);
+  }, [currentTime, races]);
 
   const onRefresh = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setRefreshing(true);
 
+    // Reload races from database
+    try {
+      const fetchedRaces = await racesService.getRaces();
+      // Filter for live races only
+      const liveRaces = fetchedRaces.filter(race => race.status === 'live' || race.status === 'in_progress');
+      setRaces(liveRaces);
+    } catch (error) {
+      console.error('[LIVE RACES TAB] Error refreshing races:', error);
+    }
+
     // Reload predictions
-    if (user) {
+    if (user && races.length > 0) {
       const predictions: Record<string, SupabasePrediction | null> = {};
-      for (const race of mockRaces) {
+      for (const race of races) {
         const prediction = await getPredictionForRace(user.id, race.id);
         predictions[race.id] = prediction;
       }
@@ -145,20 +175,18 @@ export default function LiveRacesTab({ navigation }: any) {
     }
   };
 
-  // Filter and sort races
-  const upcomingRaces = mockRaces.filter((race) => {
-    const raceDate = new Date(race.date);
-    const status = getRaceStatus(raceDate);
-    return status !== 'completed';
-  }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  // Filter and sort races - races already filtered to 'open' status
+  // Sort by date
+  const upcomingRaces = races.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   const renderRaceCard = (race: any, index: number) => {
     const track = mockTracks.find((t) => t.id === race.trackId);
     const raceDate = new Date(race.date);
-    const status = getRaceStatus(raceDate);
+    // Use race.status from database instead of date-based calculation
+    const status = race.status === 'open' ? 'in_progress' : race.status; // Map 'open' to 'in_progress' for UI
     const countdown = countdowns[race.id];
     const prediction = racePredictions[race.id];
-    const isLocked = isPredictionLocked(raceDate);
+    const isLocked = race.status !== 'open'; // Lock based on database status
     const statusColor = getStatusColor(status);
 
     return (

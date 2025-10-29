@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, LayoutAnimation, Platform, UIManager, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
 import { mockTracks } from '../data';
 import { Race } from '../types';
@@ -32,9 +33,11 @@ export default function HomeScreen() {
   const { tutorialCompleted, currentStep, nextStep, skipTutorial } = useTutorial();
 
   // Load races from database
-  useEffect(() => {
-    loadRaces();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      loadRaces();
+    }, [])
+  );
 
   const loadRaces = async () => {
     try {
@@ -179,20 +182,22 @@ export default function HomeScreen() {
             </Text>
           </View>
         ) : (
-          races.filter(race => race.status === 'upcoming').map((race) => {
+          races.filter(race => race.status === 'upcoming' || race.status === 'open').map((race) => {
           const track = mockTracks.find(t => t.id === race.trackId);
           const raceDate = new Date(race.date);
           const isWeatherExpanded = expandedWeatherRaceId === race.id;
           const isPredictionExpanded = expandedPredictionRaceId === race.id;
           const isExpanded = isWeatherExpanded || isPredictionExpanded;
           const isUpcoming = race.status === 'upcoming';
+          const isOpen = race.status === 'open';
           const existingPrediction = racePredictions[race.id];
 
           return (
             <View key={race.id} style={styles.raceCardContainer}>
               <View style={[
                 styles.raceCard,
-                isExpanded && styles.raceCardExpanded
+                isExpanded && styles.raceCardExpanded,
+                isOpen && styles.raceCardOpen
               ]}>
                 <View style={styles.raceHeader}>
                   <View style={styles.raceHeaderLeft}>
@@ -209,7 +214,10 @@ export default function HomeScreen() {
                       </Text>
                     )}
                   </View>
-                  <View style={styles.roundBadge}>
+                  <View style={[
+                    styles.roundBadge,
+                    isOpen && styles.roundBadgeOpen
+                  ]}>
                     <Text style={styles.roundBadgeText}>R{race.round}</Text>
                   </View>
                 </View>
@@ -225,9 +233,11 @@ export default function HomeScreen() {
                   </Text>
                   <View style={[
                     styles.statusBadge,
-                    isUpcoming ? styles.upcomingBadge : styles.completedBadge
+                    isUpcoming ? styles.upcomingBadge : isOpen ? styles.openBadge : styles.completedBadge
                   ]}>
-                    <Text style={styles.statusText}>{race.status.toUpperCase()}</Text>
+                    <Text style={styles.statusText}>
+                      {isOpen ? 'OPEN FOR PREDICTIONS' : race.status.toUpperCase()}
+                    </Text>
                   </View>
                 </View>
 
@@ -270,6 +280,7 @@ export default function HomeScreen() {
                             raceId={race.id}
                             raceName={race.name}
                             raceDate={race.date}
+                            raceStatus={race.status}
                             userId={user.id}
                             onPredictionSaved={() => handlePredictionSaved(race.id)}
                             existingPrediction={existingPrediction}
@@ -401,6 +412,10 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
   },
+  raceCardOpen: {
+    borderLeftColor: '#4CAF50',
+    backgroundColor: '#1e2f2a',
+  },
   raceHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -437,6 +452,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  roundBadgeOpen: {
+    backgroundColor: '#4CAF50',
+  },
   roundBadgeText: {
     fontSize: 16,
     fontWeight: 'bold',
@@ -463,6 +481,9 @@ const styles = StyleSheet.create({
   },
   upcomingBadge: {
     backgroundColor: '#00d9ff',
+  },
+  openBadge: {
+    backgroundColor: '#4CAF50',
   },
   completedBadge: {
     backgroundColor: '#4caf50',
